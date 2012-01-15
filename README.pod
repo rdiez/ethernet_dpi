@@ -209,11 +209,48 @@ The following works for me:
   # Optionally check that the interface is gone, visually check that "dpi-tap1" is gone.
   ifconfig
 
-Take a look at file I<< ethernet_example.c >> for an example of a very simple software driver.
-
 It is possible to set up an ethernet bridge between the TAP interface and your
 physical network so that your simulated SoC can communicate with other computers
 on your network, or even with the Internet. Consult your operating system's documentation for further information.
+
+=head2 Ethernet software drivers
+
+If you need to write a software driver in order to control this Ethernet simulation model
+or the real Ethernet core, you do not need to start from scratch, you can take a look
+at one of the following existing drivers:
+
+=over
+
+=item * File I<< ethernet_example.c >> included with this simulation module
+
+This is a very simple software driver mainly used for testing purposes.
+
+=item * OpenCore's version of uclinux for the OpenRISC platform
+
+Take a look at files I<< open_eth.h >> and I<< open_eth.c >> under I<< uclinux/drivers/net/open_eth.c >> .
+
+=item * OpenCore's Linux for the OpenRISC platform
+
+Look for the I<< open_eth >> driver in the or32 Linux port.
+
+=item * OpenCore's orpmon bootloader for the OpenRISC platform
+
+Look for files I<< eth.h >> and I<< eth.c >> .
+
+Other bootloaders, like I<< Das U-Boot (Universal Bootloader) >> , may have ethernet drivers too.
+
+=item * eCos
+
+The eCos operating system has an ethernet driver, take a look at this bug report:
+
+  Bug 1000153 - Added driver for Opencores 10/100 Mbit ethernet driver 
+
+=item * RTEMS
+
+The RTEMS operating system has an ethernet driver, look for the I<< open_eth >> driver
+and its I<< README.open_eth >> file.
+
+=back
 
 =head2 License
 
