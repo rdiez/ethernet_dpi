@@ -200,7 +200,7 @@ The following works for me:
   # Use the interface here.
   # For example, with this command you can generate one ARP Ethernet frame on the TAP interface,
   # which is then received by the simulated SoC:
-  #   arping -c 1 -f -w 10 -I dpi-tap1 192.168.254.1
+  #   sudo arping -c 1 -f -w 10 -I dpi-tap1 192.168.254.1
   ...
 
   # Delete the interface.
