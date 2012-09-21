@@ -133,6 +133,7 @@ static std::string format_msg_v ( const char * format_str, va_list arg_list )
       throw;
     }
 
+    free( str );
     return ret;
 }
 
@@ -178,10 +179,8 @@ static std::string format_error_message ( const int errno_val,
   }
   else
   {
-    // Always terminate the string, just in case. Note that the string
-    // may not actually be in the buffer, see the strerror_r() documentation.
-    buffer[ sizeof( buffer ) / sizeof( buffer[0] ) - 1 ] = '\0';
-    assert( strlen( buffer ) < sizeof( buffer ) );
+    // According to the strerror_r() documentation, if the string lands in the buffer,
+    // it may be truncated, but it always includes a terminating null byte.
     
     sys_msg = strerror_msg;
   }
