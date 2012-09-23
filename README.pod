@@ -21,7 +21,7 @@ However, the POD syntax is quite simple and can be edited with a standard text e
 
 =head2 Introduction
 
-Version 0.80 beta, December 2011.
+Version 0.82 beta, September 2012.
 
 This DPI module allows you to interact with a L<< Verilator|http://www.veripool.org/ >>
 simulation using standard Ethernet network tools like I<< ping >> or I<< Wireshark >>.
