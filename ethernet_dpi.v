@@ -1,5 +1,5 @@
 
-/* Version 0.82 beta, September 2012.
+/* Version 0.84 beta, October 2012.
 
   See the README file for information about this module.
 
@@ -728,7 +728,8 @@ module ethernet_dpi (
                             begin
                                if ( 0 != wb_dat_i[`ETHDPI_RXBD_RESERVED] )
                                  begin
-                                    $display( "%sThe client is trying to set reserved bits in the Rx Buffer Descriptor, which is probably an error.", `ETHDPI_ERROR_PREFIX );
+                                    $display( "%sThe client is trying to set reserved bits in the Rx Buffer Descriptor, which is probably an error. The addr was: 0x%08h, BD index was: 0x%08h, the data was: 0x%08h",
+                                              `ETHDPI_ERROR_PREFIX, wb_adr_i, bd_index, wb_dat_i );
                                     $finish;
                                  end;
 
