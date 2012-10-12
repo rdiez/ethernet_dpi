@@ -52,7 +52,7 @@
 `define ETHDPI_TX_CTRL    `ETHDPI_ADDR_WIDTH'h50  // Tx Control Register
 `define ETHDPI_LAST_REGISTER `ETHDPI_TX_CTRL
 
-`define ETHDPI_BUFFER_DESCRIPTORS_BEGIN `ETHDPI_ADDR_WIDTH'h400
+`define ETHDPI_BUFFER_DESCRIPTORS_BEGIN `ETHDPI_ADDR_WIDTH'h400  // The Tx descriptors come first, then the Rx. The boundary is at ethreg_tx_bd_num.
 `define ETHDPI_BUFFER_DESCRIPTORS_END   `ETHDPI_ADDR_WIDTH'h800  // One address beyond the end.
 
 // MODER register
@@ -146,7 +146,7 @@
 module ethernet_dpi (
                      // WISHBONE common
                      input wire  wb_clk_i,
-                     input wire  wb_rst_i,
+                     input wire  wb_rst_i,  // There is no need to assert reset at the beginning.
 
                      // WISHBONE slave, used to access the Ethernet Controller's registers.
                      input  wire [`ETHDPI_DATA_WIDTH-1:0] wb_dat_i,
@@ -272,7 +272,7 @@ module ethernet_dpi (
 
 
    // Thin wrapper around ethernet_dpi_get_received_frame_byte() that checks for any error returned.
-   task get_received_frame_byte;
+   task automatic get_received_frame_byte;
       input  int  offset;
       output byte data;
       begin
@@ -289,7 +289,7 @@ module ethernet_dpi (
    // but we may only have 1, 2 or 3 of bytes of data to write for the last 32-bit memory address.
    // This routine helps build those last 4 bytes by padding with zeroes if necessary.
 
-   task get_received_frame_byte_with_alignment_padding;
+   task automatic get_received_frame_byte_with_alignment_padding;
       input  int  offset;
       input  int  received_frame_byte_count;
       output byte data;
@@ -313,7 +313,7 @@ module ethernet_dpi (
 
 
    // Pads with zeroes if necessary, see get_received_frame_byte_with_alignment_padding() for more information.
-   task get_32_bits_worth_of_received_frame_data;
+   task automatic get_32_bits_worth_of_received_frame_data;
       input  int  offset;
       input  int  received_frame_byte_count;
       output reg [31:0] data;
@@ -338,7 +338,7 @@ module ethernet_dpi (
    endtask;
 
 
-   task wishbone_write;
+   task automatic wishbone_write;
       begin
          // $display( "%sWishbone write to wb_adr_i=0x%08X, data=0x%08X.", `ETHDPI_TRACE_PREFIX, wb_adr_i, wb_dat_i );
 
@@ -774,7 +774,7 @@ module ethernet_dpi (
    endtask
 
 
-   task wishbone_read;
+   task automatic wishbone_read;
       begin
          // $display( "%sWishbone read from wb_adr_i=0x%08X.", `ETHDPI_TRACE_PREFIX, wb_adr_i );
 
@@ -871,7 +871,7 @@ module ethernet_dpi (
    endtask
 
 
-   task start_wishbone_master_cycle;
+   task automatic start_wishbone_master_cycle;
       begin
          m_wb_sel_o <= `ETHDPI_M_WB_SEL_VALUE;
          m_wb_cyc_o <= 1;
@@ -879,7 +879,7 @@ module ethernet_dpi (
       end
    endtask
 
-   task stop_wishbone_master_cycle;
+   task automatic stop_wishbone_master_cycle;
       begin
          m_wb_cyc_o <= 0;
          m_wb_stb_o <= 0;
@@ -890,7 +890,7 @@ module ethernet_dpi (
       end
    endtask
 
-   task clear_wishbone_slave_outputs;
+   task automatic clear_wishbone_slave_outputs;
       begin
          wb_dat_o <= 0;
          wb_ack_o <= 0;
@@ -899,7 +899,7 @@ module ethernet_dpi (
    endtask
 
 
-   task step_state_machine;
+   task automatic step_state_machine;
       input int received_frame_byte_count;
       input bit ready_to_send;
       begin
@@ -1210,10 +1210,59 @@ module ethernet_dpi (
    endtask
 
 
+   task automatic initial_reset;
+      begin
+         wb_dat_o = 0;
+         wb_ack_o = 0;
+         wb_err_o = 0;
+
+         m_wb_cyc_o = 0;
+         m_wb_stb_o = 0;
+         m_wb_dat_o = 0;
+         m_wb_we_o  = 0;
+         m_wb_sel_o = 0;
+         m_wb_adr_o = 0;
+
+         int_o = 0;
+
+         ethreg_moder      = `ETHDPI_MODER_CRCEN | `ETHDPI_MODER_PAD;
+         ethreg_mac_addr   = 0;
+         ethreg_tx_bd_num  = buffer_descriptor_count / 2;
+         ethreg_int        = 0;
+         ethreg_int_mask   = 0;
+         ethreg_miiaddr    = 0;
+         ethreg_miitx_data = 0;
+         ethreg_ipgt       = `ETHDPI_DATA_WIDTH'h12;
+         ethreg_ipgr1      = `ETHDPI_DATA_WIDTH'h0C;
+         ethreg_ipgr2      = `ETHDPI_DATA_WIDTH'h12;
+         ethreg_miimoder   = `ETHDPI_DATA_WIDTH'h64;  // Clock divider set to 0x64 (100), send no 32-bit preamble. Both ignored by this implementation.
+         ethreg_tx_ctrl    = 0;
+         ethreg_packetlen  = { 16'h0040, 16'h0600 };
+         ethreg_collconf   = `ETHDPI_DATA_WIDTH'h000F003F;
+         ethreg_miicommand = 0;
+         ethreg_ctrlmoder  = 0;
+
+         for ( integer i = 0; i < buffer_descriptor_count; i++ )
+           begin
+              buffer_descriptor_flags    [i] = 0;
+              buffer_descriptor_addresses[i] = 0;
+           end;
+
+         current_state = state_idle;
+         current_tx_bd_index = 0;
+         current_rx_bd_index = ethreg_tx_bd_num;
+         current_dma_addr_offset = 0;
+         received_frame_mac_addr_miss_flag = 0;
+      end
+   endtask
+
+
    always @(posedge wb_clk_i)
    begin
       if ( wb_rst_i )
         begin
+           // NOTE: If you modify the reset logic, please update the initial_reset task too.
+
            clear_wishbone_slave_outputs;
            stop_wishbone_master_cycle;
 
@@ -1310,6 +1359,8 @@ module ethernet_dpi (
              $display( "%sError creating the object instance.", `ETHDPI_ERROR_PREFIX );
              $finish;
           end;
+
+        initial_reset;
      end
 
    final
