@@ -31,7 +31,6 @@
 //       must be visible to this file. If you are compiling this file as a standalone module,
 //       you will have to include here the apropriate Verilator-generated header file.
 //       Example:  #include "Vminsoc_bench_core__Dpi.h"
-#include "Vminsoc_bench_core__Dpi.h"
 
 #include <assert.h>
 #include <stdio.h>
