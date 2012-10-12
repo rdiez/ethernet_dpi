@@ -1,27 +1,27 @@
 
 /* Version 0.82 beta, September 2012.
- 
+
   See the README file for information about this module.
-  
+
   Copyright (c) 2011 R. Diez
 
-  This source file may be used and distributed without        
-  restriction provided that this copyright statement is not   
-  removed from the file and that any derivative work contains 
+  This source file may be used and distributed without
+  restriction provided that this copyright statement is not
+  removed from the file and that any derivative work contains
   the original copyright notice and the associated disclaimer.
-                                                             
-  This source file is free software; you can redistribute it  
-  and/or modify it under the terms of the GNU Lesser General  
+
+  This source file is free software; you can redistribute it
+  and/or modify it under the terms of the GNU Lesser General
   Public License version 3 as published by the Free Software Foundation.
-                                                             
-  This source is distributed in the hope that it will be      
-  useful, but WITHOUT ANY WARRANTY; without even the implied  
-  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR     
+
+  This source is distributed in the hope that it will be
+  useful, but WITHOUT ANY WARRANTY; without even the implied
+  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
   PURPOSE.  See the GNU Lesser General Public License for more
-  details.                                                    
-                                                             
-  You should have received a copy of the GNU Lesser General   
-  Public License along with this source; if not, download it  
+  details.
+
+  You should have received a copy of the GNU Lesser General
+  Public License along with this source; if not, download it
   from http://www.gnu.org/licenses/
 */
 
@@ -56,9 +56,9 @@
 `define ETHDPI_BUFFER_DESCRIPTORS_END   `ETHDPI_ADDR_WIDTH'h800  // One address beyond the end.
 
 // MODER register
-`define ETHDPI_MODER_RXEN     `ETHDPI_DATA_WIDTH'h00000001  // Receive Enable 
+`define ETHDPI_MODER_RXEN     `ETHDPI_DATA_WIDTH'h00000001  // Receive Enable
 `define ETHDPI_MODER_TXEN     `ETHDPI_DATA_WIDTH'h00000002  // Transmit Enable
-`define ETHDPI_MODER_NOPRE    `ETHDPI_DATA_WIDTH'h00000004  // No Preamble 
+`define ETHDPI_MODER_NOPRE    `ETHDPI_DATA_WIDTH'h00000004  // No Preamble
 `define ETHDPI_MODER_BRO      `ETHDPI_DATA_WIDTH'h00000008  // Reject Broadcast
 `define ETHDPI_MODER_IAM      `ETHDPI_DATA_WIDTH'h00000010  // Use Individual Hash
 `define ETHDPI_MODER_PRO      `ETHDPI_DATA_WIDTH'h00000020  // Promiscuous (receive all)
@@ -141,13 +141,13 @@
 
 `define ETHDPI_EXPECTED_WB_SEL_VALUE 4'b1111
 `define ETHDPI_M_WB_SEL_VALUE        4'b1111
- 
+
 
 module ethernet_dpi (
                      // WISHBONE common
                      input wire  wb_clk_i,
                      input wire  wb_rst_i,
-                                 
+
                      // WISHBONE slave, used to access the Ethernet Controller's registers.
                      input  wire [`ETHDPI_DATA_WIDTH-1:0] wb_dat_i,
                      input  wire [3:0] wb_sel_i,  // See ETHDPI_EXPECTED_WB_SEL_VALUE.
@@ -158,18 +158,18 @@ module ethernet_dpi (
                      input  wire wb_stb_i,
                      output wire wb_ack_o,
                      output wire wb_err_o,
-                                 
+
                      // WISHBONE master, used by the Ethernet Controller to access the main memory in a DMA fashion.
                      output wire [`ETHDPI_ADDR_WIDTH-1:0] m_wb_adr_o,
                      output wire [3:0] m_wb_sel_o,
-                     output wire m_wb_we_o, 
+                     output wire m_wb_we_o,
                      output wire [`ETHDPI_DATA_WIDTH-1:0] m_wb_dat_o,
                      input  wire [`ETHDPI_DATA_WIDTH-1:0] m_wb_dat_i,
-                     output wire m_wb_cyc_o, 
+                     output wire m_wb_cyc_o,
                      output wire m_wb_stb_o,
                      input  wire m_wb_ack_i,
-                     input  wire m_wb_err_i, 
-                                 
+                     input  wire m_wb_err_i,
+
                      output wire int_o  // Ethernet interrupt request
                     );
 
@@ -197,24 +197,24 @@ module ethernet_dpi (
    // ------ Routines to send frames ------
 
    import "DPI-C" function int ethernet_dpi_new_tx_frame ( input longint obj );
-   
+
    import "DPI-C" function int ethernet_dpi_add_byte_to_tx_frame ( input longint obj,
                                                                    input byte data );
    // Before sending a frame, make sure that ethernet_dpi_tick() returned ready_to_send == 1.
    import "DPI-C" function int ethernet_dpi_send_tx_frame ( input longint obj );
 
-   
+
    // ------ Routines to receive frames ------
 
    // Before reading a frame's data, make sure that ethernet_dpi_tick() returned received_frame_byte_count > 0.
    import "DPI-C" function int ethernet_dpi_get_received_frame_byte ( input  longint obj,
                                                                       input  int     offset,
                                                                       output byte    data );
-   
+
    // After reading all frame bytes, call this routine in order to discard it.
    // ethernet_dpi_tick() will then load the next one from the TAP interface.
    import "DPI-C" function int ethernet_dpi_discard_received_frame ( input longint obj );
- 
+
    // --- DPI definitions end ---
 
    parameter module_name = "Ethernet DPI";
@@ -224,7 +224,7 @@ module ethernet_dpi (
    // Error messages cannot be turned off and get printed to stderr.
    parameter print_informational_messages = 1;
 
-   
+
    // ---- Ethernet Controller registers begin.
    reg [31:0] ethreg_moder;
    reg [47:0] ethreg_mac_addr;
@@ -245,7 +245,7 @@ module ethernet_dpi (
    //  ---- Ethernet Controller registers end.
 
    localparam buffer_descriptor_count = 128;
-   
+
    reg  [31:0] buffer_descriptor_flags    [ buffer_descriptor_count-1 : 0 ];
    reg  [31:0] buffer_descriptor_addresses[ buffer_descriptor_count-1 : 0 ];
 
@@ -258,14 +258,14 @@ module ethernet_dpi (
                   state_waiting_for_dma_write_to_complete,
                   state_wait_state_between_dma_writes
                 } state_machine_state_enum;
-   
+
    state_machine_state_enum current_state;
 
    int current_tx_bd_index;
    int current_rx_bd_index;
    int current_dma_addr_offset;
    bit received_frame_mac_addr_miss_flag;
-   
+
    `define ETHDPI_ERROR_PREFIX       { module_name, " error: " }
    `define ETHDPI_INFORMATION_PREFIX { module_name, ": " }
    `define ETHDPI_TRACE_PREFIX       { module_name, ": " }
@@ -284,7 +284,7 @@ module ethernet_dpi (
       end
    endtask;
 
-   
+
    // When writing to memory over DMA, we can only write 32 bits at a time,
    // but we may only have 1, 2 or 3 of bytes of data to write for the last 32-bit memory address.
    // This routine helps build those last 4 bytes by padding with zeroes if necessary.
@@ -301,7 +301,7 @@ module ethernet_dpi (
                    $display( "%sInternal error, receive offset %d is out of range by more than the alignment distance.", `ETHDPI_ERROR_PREFIX, offset );
                    $finish;
                 end;
-              
+
               data = 0;
            end
          else
@@ -350,7 +350,7 @@ module ethernet_dpi (
              begin
                 // Nothing to do here.
              end
-           
+
            `ETHDPI_MIIADDRESS,
            `ETHDPI_MIITX_DATA,
            `ETHDPI_MIIRX_DATA,
@@ -386,8 +386,8 @@ module ethernet_dpi (
                   end;
              end
          endcase;
-         
-         
+
+
          unique case ( wb_adr_i )
            `ETHDPI_MODER:
              begin
@@ -470,7 +470,7 @@ module ethernet_dpi (
                      // Otherwise, we might receive stale frames.
                      ethernet_dpi_flush_tap_receive_buffer( obj );
                   end
-             
+
                 ethreg_moder <= wb_dat_i;
              end
 
@@ -519,7 +519,7 @@ module ethernet_dpi (
 
                 ethreg_int <= ethreg_int & (~ wb_dat_i[`ETHDPI_INT_ALL] );
              end
-           
+
            `ETHDPI_INT_MASK:
              begin
                 if ( 0 != wb_dat_i[`ETHDPI_INT_RESERVED] )
@@ -530,7 +530,7 @@ module ethernet_dpi (
 
                 /* Although the user can set any of the following interrupt mask bits,
                    the associated interrupts are never triggered by this simulation module.
-                 
+
                 if ( wb_dat_i[`ETHDPI_INT_RXC] )
                   begin
                      $display( "%sThe client is setting the RXC bit in the Interrupt Mask Register (INT_MASK), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
@@ -569,7 +569,7 @@ module ethernet_dpi (
              begin
                 ethreg_mac_addr[31:0] <= wb_dat_i;
              end
-           
+
            `ETHDPI_MAC_ADDR1:
              begin
                 if ( 0 != wb_dat_i[31:16] )
@@ -577,7 +577,7 @@ module ethernet_dpi (
                      $display( "%sThe client is setting the reserved bits in the Ethernet MAC Address 1 Register (MAC_ADDR1), which is probably an error.", `ETHDPI_ERROR_PREFIX );
                      $finish;
                   end;
-             
+
                 ethreg_mac_addr[47:32] <= wb_dat_i[15:0];
              end
 
@@ -636,7 +636,7 @@ module ethernet_dpi (
                 $display( "%sThe client is trying to write to the MIISTATUS register, which is probably an error.", `ETHDPI_ERROR_PREFIX );
                 $finish;
              end
-                                                   
+
            `ETHDPI_MIICOMMAND:
              begin
                 if ( 0 != wb_dat_i[ `ETHDPI_MIICOMMAND_RESERVED ] )
@@ -650,7 +650,7 @@ module ethernet_dpi (
                      $display( "%sThe client is setting the WCTRLDATA bit in the MIICOMMAND register, which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
                   end;
-                
+
                 if ( wb_dat_i[ `ETHDPI_MIICOMMAND_SCANSTAT ] )
                   begin
                      $display( "%sThe client is setting the SCANSTAT bit in the MIICOMMAND register, which is not supported yet.", `ETHDPI_ERROR_PREFIX );
@@ -659,9 +659,9 @@ module ethernet_dpi (
 
                 ethreg_miicommand <= wb_dat_i;
              end
-           
+
            `ETHDPI_CTRLMODER:   ethreg_ctrlmoder  <= wb_dat_i;  // The value in this register is ignored.
-           
+
            default:
              begin
                 if ( wb_adr_i >= `ETHDPI_BUFFER_DESCRIPTORS_BEGIN &&
@@ -685,13 +685,13 @@ module ethernet_dpi (
                           is_bd_enabled = ( 0 != ( ethreg_moder & `ETHDPI_MODER_RXEN ) &&
                                           buffer_descriptor_flags[ bd_index ][ `ETHDPI_RXBD_RD ] );
                        end;
-                     
+
                      if ( is_bd_enabled )
                        begin
                           $display( "%sThe client is trying to update a Buffer Descriptor which has been previously enabled for transmission or reception and could possibly be in use by the Ethernet Controller. This is probably an error in the client.", `ETHDPI_ERROR_PREFIX );
                           $finish;
                        end;
-                     
+
                      if ( is_first_word_in_bd )
                        begin
                           if ( is_tx )
@@ -736,7 +736,7 @@ module ethernet_dpi (
                                          `ETHDPI_TRACE_PREFIX,
                                          wb_dat_i[`ETHDPI_RXBD_LEN] ); */
                             end;
-                          
+
                           buffer_descriptor_flags[ bd_index ] <= wb_dat_i;
                        end
                      else
@@ -750,7 +750,7 @@ module ethernet_dpi (
                                $display( "%sThe client is trying to write an unaligned memory address to a Buffer Descriptor, but this Ethernet simulation model does not support unaligned memory addresses.", `ETHDPI_ERROR_PREFIX );
                                $finish;
                             end;
-                          
+
                           buffer_descriptor_addresses[ bd_index ] <= wb_dat_i;
                        end
                   end
@@ -771,17 +771,17 @@ module ethernet_dpi (
              end
          endcase;
       end
-   endtask   
+   endtask
 
-   
+
    task wishbone_read;
       begin
          // $display( "%sWishbone read from wb_adr_i=0x%08X.", `ETHDPI_TRACE_PREFIX, wb_adr_i );
-         
+
          unique case ( wb_adr_i )
            `ETHDPI_MODER:
              wb_dat_o <= ethreg_moder;
-             
+
            `ETHDPI_INT:
              begin
                 wb_dat_o[ `ETHDPI_INT_RESERVED ] <= 0;
@@ -793,11 +793,11 @@ module ethernet_dpi (
                 wb_dat_o[ `ETHDPI_INT_RESERVED ] <= 0;
                 wb_dat_o[ `ETHDPI_INT_ALL      ] <= ethreg_int_mask[ `ETHDPI_INT_ALL ];
              end
-           
+
            `ETHDPI_IPGT:   wb_dat_o <= ethreg_ipgt;
            `ETHDPI_IPGR1:  wb_dat_o <= ethreg_ipgr1;
            `ETHDPI_IPGR2:  wb_dat_o <= ethreg_ipgr2;
-             
+
            `ETHDPI_PACKETLEN:   wb_dat_o <= ethreg_packetlen;
            `ETHDPI_COLLCONF:    wb_dat_o <= ethreg_collconf;
            `ETHDPI_TX_BD_NUM:   wb_dat_o <= ethreg_tx_bd_num;
@@ -821,29 +821,29 @@ module ethernet_dpi (
                 // as we are always reporting a "link up" status.
                 wb_dat_o <= `ETHDPI_MII_RSTAT_LINK_ESTABLISHED_MASK;
              end
-           
+
            `ETHDPI_MIISTATUS:
              wb_dat_o <= 0;  // About the BUSY     bit: it's always zero, as all simulated operations are completed instantly.
                              // About the LINKFAIL bit: it's always zero, as the TAP interface always provides a connected virtual cable.
-           
+
            `ETHDPI_MAC_ADDR0:
              wb_dat_o <= ethreg_mac_addr[31:0];
-           
+
            `ETHDPI_MAC_ADDR1:
              begin
                 wb_dat_o[15:0]  <= ethreg_mac_addr[47:32];
                 wb_dat_o[31:16] <= 0;
              end
-           
+
            `ETHDPI_HASH_ADDR0:
              wb_dat_o <= 0;  // Not supported yet.
-  
+
            `ETHDPI_HASH_ADDR1:
              wb_dat_o <= 0;  // Not supported yet.
-  
+
            `ETHDPI_TX_CTRL:
              wb_dat_o <= ethreg_tx_ctrl;
-               
+
            default:
              begin
                 if ( wb_adr_i >= `ETHDPI_BUFFER_DESCRIPTORS_BEGIN &&
@@ -852,7 +852,7 @@ module ethernet_dpi (
                      integer bd_index = ( wb_adr_i - `ETHDPI_BUFFER_DESCRIPTORS_BEGIN ) / 8;
                      integer _unused_ok = bd_index;  // Prevents 'unused' warning under Verilator for some of the 32 bits in bd_index.
                      bit     is_first_word_in_bd = !wb_adr_i[2];
-                     
+
                      if ( is_first_word_in_bd )
                        wb_dat_o <= buffer_descriptor_flags[ bd_index ];
                      else
@@ -878,7 +878,7 @@ module ethernet_dpi (
          m_wb_stb_o <= 1;
       end
    endtask
-   
+
    task stop_wishbone_master_cycle;
       begin
          m_wb_cyc_o <= 0;
@@ -898,13 +898,13 @@ module ethernet_dpi (
       end
    endtask
 
-   
+
    task step_state_machine;
       input int received_frame_byte_count;
       input bit ready_to_send;
       begin
          unique case ( current_state )
-           
+
            state_idle:
              begin
                 if ( ready_to_send &&
@@ -945,7 +945,7 @@ module ethernet_dpi (
                           buffer_descriptor_flags[ current_rx_bd_index ][ `ETHDPI_RXBD_RD ] )
                   begin
                      reg [31:0] data;
-                     
+
                      /* $display( "%sInitiating DMA write for Rx Buffer Descriptor %d, address 0x%08X, frame data length is %d bytes.",
                                `ETHDPI_TRACE_PREFIX,
                                current_rx_bd_index,
@@ -974,7 +974,7 @@ module ethernet_dpi (
                        begin
                           byte mac_addr_0, mac_addr_1, mac_addr_2, mac_addr_3, mac_addr_4, mac_addr_5;
                           bit  is_broadcast, is_our_mac_addr, is_addr_match, should_receive;
-                          
+
                           get_received_frame_byte( 0, mac_addr_0 );
                           get_received_frame_byte( 1, mac_addr_1 );
                           get_received_frame_byte( 2, mac_addr_2 );
@@ -989,7 +989,7 @@ module ethernet_dpi (
                           should_receive  = is_addr_match || 0 != ( ethreg_moder & `ETHDPI_MODER_PRO );
 
                           /* $display( "Our MAC address: 0x%12X, received: 0x%12X, is_our_mac_addr: %d, is_broadcast: %d, is_addr_match: %d, should_receive: %d",
-                                    ethreg_mac_addr, 
+                                    ethreg_mac_addr,
                                     { mac_addr_0, mac_addr_1, mac_addr_2, mac_addr_3, mac_addr_4, mac_addr_5 },
                                     is_our_mac_addr,
                                     is_broadcast,
@@ -1007,7 +1007,7 @@ module ethernet_dpi (
                           else
                             begin
                                received_frame_mac_addr_miss_flag <= ! is_addr_match;
-                               
+
                                get_32_bits_worth_of_received_frame_data( 0, received_frame_byte_count, data );
 
                                m_wb_adr_o <= buffer_descriptor_addresses[ current_rx_bd_index ];
@@ -1016,13 +1016,13 @@ module ethernet_dpi (
                                start_wishbone_master_cycle;
 
                                current_dma_addr_offset <= 0;
-                     
+
                                current_state <= state_waiting_for_dma_write_to_complete;
                             end;
                        end;
                   end;
              end
-           
+
            state_waiting_for_dma_read_to_complete:
              begin
                 if ( m_wb_err_i )
@@ -1047,21 +1047,21 @@ module ethernet_dpi (
                           $display( "%sError appending to the DPI tx queue.", `ETHDPI_ERROR_PREFIX );
                           $finish;
                        end;
-                       
+
                      if ( byte_count_left >= 2 )  // In a separate if(), as Verilator does not support short-circuit expression evaluation yet (as of Dec 2011).
                        if ( 0 != ethernet_dpi_add_byte_to_tx_frame( obj, m_wb_dat_i[ 23:16 ] ) )
                        begin
                           $display( "%sError appending to the DPI tx queue.", `ETHDPI_ERROR_PREFIX );
                           $finish;
                        end;
-                     
+
                      if ( byte_count_left >= 3 )
                        if ( 0 != ethernet_dpi_add_byte_to_tx_frame( obj, m_wb_dat_i[ 15:8  ] ) )
                        begin
                           $display( "%sError appending to the DPI tx queue.", `ETHDPI_ERROR_PREFIX );
                           $finish;
                        end;
-                     
+
                      if ( byte_count_left >= 4 )
                        if ( 0 != ethernet_dpi_add_byte_to_tx_frame( obj, m_wb_dat_i[  7:0  ] ) )
                        begin
@@ -1092,7 +1092,7 @@ module ethernet_dpi (
                                // $display( "%sSetting the Tx interrupt source bit", `ETHDPI_TRACE_PREFIX );
                                ethreg_int[`ETHDPI_INT_TXB] <= 1;
                             end;
-                          
+
                           if ( buffer_descriptor_flags[ current_tx_bd_index ][`ETHDPI_TXBD_WR] )
                             current_tx_bd_index <= 0;
                           else if ( current_tx_bd_index == ethreg_tx_bd_num - 1 )
@@ -1126,7 +1126,7 @@ module ethernet_dpi (
                      reg [31:0] next_offset = current_dma_addr_offset + 4;
 
                      stop_wishbone_master_cycle;
-                     
+
                      // Have we written the last 32 bits? If so, we're done here with the Ethernet frame reception.
                      if ( next_offset >= received_frame_byte_count )
                        begin
@@ -1146,7 +1146,7 @@ module ethernet_dpi (
                                // $display( "%sSetting the Rx interrupt source bit", `ETHDPI_TRACE_PREFIX );
                                ethreg_int[`ETHDPI_INT_RXF] <= 1;
                             end;
-                            
+
                           if ( buffer_descriptor_flags[ current_rx_bd_index ][`ETHDPI_RXBD_WR] )
                             current_rx_bd_index <= ethreg_tx_bd_num;
                           else if ( current_rx_bd_index == buffer_descriptor_count )
@@ -1178,28 +1178,28 @@ module ethernet_dpi (
                 m_wb_we_o  <= 0;
                 m_wb_dat_o <= 0;
                 start_wishbone_master_cycle;
-                
+
                 current_state <= state_waiting_for_dma_read_to_complete;
              end
 
            state_wait_state_between_dma_writes:
              begin
                 reg [31:0] data;
-                          
+
                 // $display( "%sInitiating next DMA write to address 0x%08X",
                 //           `ETHDPI_TRACE_PREFIX,
                 //           buffer_descriptor_addresses[ current_rx_bd_index ] + current_dma_addr_offset );
 
                 get_32_bits_worth_of_received_frame_data( current_dma_addr_offset, received_frame_byte_count, data );
-                          
+
                 m_wb_adr_o <= buffer_descriptor_addresses[ current_rx_bd_index ] + current_dma_addr_offset;
                 m_wb_we_o  <= 1;
                 m_wb_dat_o <= data;
                 start_wishbone_master_cycle;
-                
+
                 current_state <= state_waiting_for_dma_write_to_complete;
              end
-             
+
            default:
              begin
                 $display( "%sDefault case for current_state=%d.", `ETHDPI_ERROR_PREFIX, current_state );
@@ -1208,7 +1208,7 @@ module ethernet_dpi (
            endcase;
       end
    endtask
-   
+
 
    always @(posedge wb_clk_i)
    begin
@@ -1216,7 +1216,7 @@ module ethernet_dpi (
         begin
            clear_wishbone_slave_outputs;
            stop_wishbone_master_cycle;
-           
+
            int_o <= 0;
 
            ethreg_moder      <= `ETHDPI_MODER_CRCEN | `ETHDPI_MODER_PAD;
@@ -1248,7 +1248,7 @@ module ethernet_dpi (
            current_rx_bd_index <= ethreg_tx_bd_num;
            current_dma_addr_offset <= 0;
            received_frame_mac_addr_miss_flag <= 0;
-	    end 
+	    end
       else
         begin
            int received_frame_byte_count;
@@ -1265,7 +1265,7 @@ module ethernet_dpi (
            step_state_machine( received_frame_byte_count, ready_to_send );
 
            int_o <= ( 0 != ( ethreg_int & ethreg_int_mask ) );
-           
+
            // Default values for the Wishbone slave output signals.
            clear_wishbone_slave_outputs;
 
@@ -1288,7 +1288,7 @@ module ethernet_dpi (
                      $display( "%sThe client is using an unexpected Wishbone wb_sel_i value of 0x%02X.", `ETHDPI_ERROR_PREFIX, wb_sel_i );
                      $finish;
                   end;
-                
+
                 if ( wb_we_i )
                   wishbone_write();
                 else
@@ -1297,7 +1297,7 @@ module ethernet_dpi (
         end;
    end;
 
-   
+
    initial
      begin
         obj = 0;
@@ -1317,5 +1317,5 @@ module ethernet_dpi (
         // This is optional, but can help find resource or memory leaks in other parts of the software.
         ethernet_dpi_destroy( obj );
      end
-   
+
 endmodule
