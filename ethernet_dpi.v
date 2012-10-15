@@ -143,34 +143,43 @@
 `define ETHDPI_M_WB_SEL_VALUE        4'b1111
 
 
-module ethernet_dpi (
+module ethernet_dpi #(
+                      module_name = "Ethernet DPI",     // Only used for tracing/logging purposes.
+                      tap_interface_name = "dpi-tap1",  // You have to create this virtual interface beforehand on your computer, see the README file for details.
+
+                      // Whether the C++ side prints informational messages to stdout.
+                      // Error messages cannot be turned off and get printed to stderr.
+                      print_informational_messages = 1,
+                      TRACE_DMA_TRAFFIC = 0
+                     )
+                    (
                      // WISHBONE common
-                     input wire  wb_clk_i,
-                     input wire  wb_rst_i,  // There is no need to assert reset at the beginning.
+                     input wire                           wb_clk_i,
+                     input wire                           wb_rst_i, // There is no need to assert reset at the beginning.
 
                      // WISHBONE slave, used to access the Ethernet Controller's registers.
-                     input  wire [`ETHDPI_DATA_WIDTH-1:0] wb_dat_i,
-                     input  wire [3:0] wb_sel_i,  // See ETHDPI_EXPECTED_WB_SEL_VALUE.
-                     input  wire wb_we_i,
+                     input wire [`ETHDPI_DATA_WIDTH-1:0]  wb_dat_i,
+                     input wire [3:0]                     wb_sel_i, // See ETHDPI_EXPECTED_WB_SEL_VALUE.
+                     input wire                           wb_we_i,
                      output wire [`ETHDPI_DATA_WIDTH-1:0] wb_dat_o,
-                     input  wire [`ETHDPI_ADDR_WIDTH-1:0] wb_adr_i,
-                     input  wire wb_cyc_i,
-                     input  wire wb_stb_i,
-                     output wire wb_ack_o,
-                     output wire wb_err_o,
+                     input wire [`ETHDPI_ADDR_WIDTH-1:0]  wb_adr_i,
+                     input wire                           wb_cyc_i,
+                     input wire                           wb_stb_i,
+                     output wire                          wb_ack_o,
+                     output wire                          wb_err_o,
 
                      // WISHBONE master, used by the Ethernet Controller to access the main memory in a DMA fashion.
                      output wire [`ETHDPI_ADDR_WIDTH-1:0] m_wb_adr_o,
-                     output wire [3:0] m_wb_sel_o,
-                     output wire m_wb_we_o,
+                     output wire [3:0]                    m_wb_sel_o,
+                     output wire                          m_wb_we_o,
                      output wire [`ETHDPI_DATA_WIDTH-1:0] m_wb_dat_o,
-                     input  wire [`ETHDPI_DATA_WIDTH-1:0] m_wb_dat_i,
-                     output wire m_wb_cyc_o,
-                     output wire m_wb_stb_o,
-                     input  wire m_wb_ack_i,
-                     input  wire m_wb_err_i,
+                     input wire [`ETHDPI_DATA_WIDTH-1:0]  m_wb_dat_i,
+                     output wire                          m_wb_cyc_o,
+                     output wire                          m_wb_stb_o,
+                     input wire                           m_wb_ack_i,
+                     input wire                           m_wb_err_i,
 
-                     output wire int_o  // Ethernet interrupt request
+                     output wire                          int_o  // Ethernet interrupt request
                     );
 
    // --- DPI definitions begin ---
@@ -216,14 +225,6 @@ module ethernet_dpi (
    import "DPI-C" function int ethernet_dpi_discard_received_frame ( input longint obj );
 
    // --- DPI definitions end ---
-
-   parameter module_name = "Ethernet DPI";
-   parameter tap_interface_name = "dpi-tap1";
-
-   // Whether the C++ side prints informational messages to stdout.
-   // Error messages cannot be turned off and get printed to stderr.
-   parameter print_informational_messages = 1;
-
 
    // ---- Ethernet Controller registers begin.
    reg [31:0] ethreg_moder;
@@ -280,7 +281,7 @@ module ethernet_dpi (
            begin
               $display( "%sError reading a byte from the received frame at offset 0x%08X.", `ETHDPI_ERROR_PREFIX, offset );
               $finish;
-           end;
+           end
       end
    endtask;
 
@@ -300,14 +301,14 @@ module ethernet_dpi (
                 begin
                    $display( "%sInternal error, receive offset %d is out of range by more than the alignment distance.", `ETHDPI_ERROR_PREFIX, offset );
                    $finish;
-                end;
+                end
 
               data = 0;
            end
          else
            begin
               get_received_frame_byte( offset, data );
-           end;
+           end
       end
    endtask;
 
@@ -324,7 +325,7 @@ module ethernet_dpi (
            begin
               $display( "%sInternal error: the Ethernet frame offset is not aligned.", `ETHDPI_ERROR_PREFIX );
               $finish;
-           end;
+           end
 
          get_received_frame_byte_with_alignment_padding( offset + 0, received_frame_byte_count, b1 );
          get_received_frame_byte_with_alignment_padding( offset + 1, received_frame_byte_count, b2 );
@@ -383,7 +384,7 @@ module ethernet_dpi (
                   begin
                      $display( "%sDefault case in for Wishbone write wb_adr_i=0x%02X.", `ETHDPI_ERROR_PREFIX, wb_adr_i );
                      $finish;
-                  end;
+                  end
              end
          endcase;
 
@@ -404,8 +405,8 @@ module ethernet_dpi (
                        begin
                           $display( "%sThe client is setting the reserved bits in the Mode Register (MODER), which is probably an error.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
-                  end;
+                       end
+                  end
 
                 // NOTE: The Excess Defer (EXDFREN), the No Backoff (NOBCKOF) and the Interframe Gap (IFG)
                 //       flags are ignored, as there can be no Ethernet collisions or transmission delays
@@ -415,25 +416,25 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is setting the NOPRE bit in the Mode Register (MODER), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( 0 != ( wb_dat_i & `ETHDPI_MODER_IAM ) )
                   begin
                      $display( "%sThe client is setting the IAM bit in the Mode Register (MODER), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( 0 != ( wb_dat_i & `ETHDPI_MODER_LOOPBCK ) )
                   begin
                      $display( "%sThe client is setting the LOOPBCK bit in the Mode Register (MODER), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( 0 != ( wb_dat_i & `ETHDPI_MODER_NOBCKOF ) )
                   begin
                      $display( "%sThe client is setting the NOBCKOF bit in the Mode Register (MODER), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( 0 != ( wb_dat_i & `ETHDPI_MODER_DLYCRCEN ) )
                   begin
@@ -441,27 +442,27 @@ module ethernet_dpi (
                      // or receive the CRC, so it's not possible to simulate sending an invalid CRC.
                      $display( "%sThe client is setting the DLYCRCEN bit in the Mode Register (MODER), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( 0 != ( wb_dat_i & `ETHDPI_MODER_HUGEN ) )
                   begin
                      $display( "%sThe client is setting the HUGEN bit in the Mode Register (MODER), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 /* The PAD bit is ignored, see the README file for details.
                 if ( 0 != ( wb_dat_i & `ETHDPI_MODER_PAD ) )
                   begin
                      $display( "%sThe client is setting the PAD bit in the Mode Register (MODER), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
                 */
 
                 if ( 0 != ( wb_dat_i & `ETHDPI_MODER_RECSMALL ) )
                   begin
                      $display( "%sThe client is setting the RECSMALL bit in the Mode Register (MODER), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( 0 != ( wb_dat_i     & `ETHDPI_MODER_RXEN ) &&
                      0 == ( ethreg_moder & `ETHDPI_MODER_RXEN ) )
@@ -493,13 +494,13 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is trying to set reserved bits in TX CTRL register, which is probably an error.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( 0 != wb_dat_i[`ETHDPI_TX_CTRL_TXPAUSERQ] )
                   begin
                      $display( "%sThe client is trying to send an Ethernet pause control frame, which is not supported yet by this implementation.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 ethreg_tx_ctrl <= wb_dat_i;
              end
@@ -510,7 +511,7 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is trying to clear reserved bits in the Interrupt Source Register (INT_SOURCE), which is probably an error.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 // $display("%sReg int: old: 0b%7B, new: 0b%7B",
                 //          `ETHDPI_TRACE_PREFIX,
@@ -526,7 +527,7 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is setting the reserved bits in the Interrupt Mask Register (INT_MASK), which is probably an error.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 /* Although the user can set any of the following interrupt mask bits,
                    the associated interrupts are never triggered by this simulation module.
@@ -535,31 +536,31 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is setting the RXC bit in the Interrupt Mask Register (INT_MASK), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_dat_i[`ETHDPI_INT_TXC] )
                   begin
                      $display( "%sThe client is setting the TXC bit in the Interrupt Mask Register (INT_MASK), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_dat_i[`ETHDPI_INT_BUSY] )
                   begin
                      $display( "%sThe client is setting the BUSY bit in the Interrupt Mask Register (INT_MASK), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_dat_i[`ETHDPI_INT_RXE] )
                   begin
                      $display( "%sThe client is setting the RXE bit in the Interrupt Mask Register (INT_MASK), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_dat_i[`ETHDPI_INT_TXE] )
                   begin
                      $display( "%sThe client is setting the TXE bit in the Interrupt Mask Register (INT_MASK), which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
                 */
 
                 ethreg_int_mask <= wb_dat_i[`ETHDPI_INT_ALL];
@@ -576,7 +577,7 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is setting the reserved bits in the Ethernet MAC Address 1 Register (MAC_ADDR1), which is probably an error.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 ethreg_mac_addr[47:32] <= wb_dat_i[15:0];
              end
@@ -601,7 +602,7 @@ module ethernet_dpi (
                      // The software can reset all other registers by hand.
                      current_tx_bd_index <= 0;        // Note that there might not be any Tx Buffer Descriptors (all of them are Rx).
                      current_rx_bd_index <= wb_dat_i; // Note that there might not be any Rx Buffer Descriptors (all of them are Tx).
-                  end;
+                  end
              end
 
            `ETHDPI_HASH_ADDR0,
@@ -617,14 +618,14 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is trying to set the maximum frame length to an unaligned value. This is dangerous because both the real Ethernet core and this simulation model will write beyond this limit up until the next alignment boundary, causing a buffer overflow in the receive buffers.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_dat_i[ `ETHDPI_PACKETLEN_MAXFL ] < wb_dat_i[ `ETHDPI_PACKETLEN_MINFL ] )
                   begin
                      $display( "%sThe client is trying to set a maximum frame length of %d that is less than the minimum frame length of %d. This is probably an error at the client side.",
                                `ETHDPI_ERROR_PREFIX, wb_dat_i[ `ETHDPI_PACKETLEN_MAXFL ], wb_dat_i[ `ETHDPI_PACKETLEN_MINFL ] );
                      $finish;
-                  end;
+                  end
 
                 ethreg_packetlen <= wb_dat_i;
              end
@@ -643,19 +644,19 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is setting the reserved bits in the MIICOMMAND register, which is probably an error.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_dat_i[ `ETHDPI_MIICOMMAND_WCTRLDATA ] )
                   begin
                      $display( "%sThe client is setting the WCTRLDATA bit in the MIICOMMAND register, which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_dat_i[ `ETHDPI_MIICOMMAND_SCANSTAT ] )
                   begin
                      $display( "%sThe client is setting the SCANSTAT bit in the MIICOMMAND register, which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 ethreg_miicommand <= wb_dat_i;
              end
@@ -684,13 +685,13 @@ module ethernet_dpi (
                        begin
                           is_bd_enabled = ( 0 != ( ethreg_moder & `ETHDPI_MODER_RXEN ) &&
                                           buffer_descriptor_flags[ bd_index ][ `ETHDPI_RXBD_RD ] );
-                       end;
+                       end
 
                      if ( is_bd_enabled )
                        begin
                           $display( "%sThe client is trying to update a Buffer Descriptor which has been previously enabled for transmission or reception and could possibly be in use by the Ethernet Controller. This is probably an error in the client.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
+                       end
 
                      if ( is_first_word_in_bd )
                        begin
@@ -700,14 +701,14 @@ module ethernet_dpi (
                                  begin
                                     $display( "%sThe client is trying to set reserved bits in the Tx Buffer Descriptor, which is probably an error.", `ETHDPI_ERROR_PREFIX );
                                     $finish;
-                                 end;
+                                 end
 
                                /* The PAD bit is ignored, see the README file for details.
                                if ( 0 != ( wb_dat_i[`ETHDPI_TXBD_PAD] ) )
                                  begin
                                     $display( "%sThe client is setting the PAD bit in the Tx Buffer Descriptor, which is not supported yet.", `ETHDPI_ERROR_PREFIX );
                                     $finish;
-                                 end; */
+                                 end */
 
                                // There is a global CRC flag in the MODER register and another CRC flag in the Tx Buffer Descriptor,
                                // and it is not clear in the Ethernet core documentation (as of dec 2011) how those two work together.
@@ -718,7 +719,7 @@ module ethernet_dpi (
                                  begin
                                     $display( "%sThe client is trying to send an Ethernet frame with an already-calculated CRC at the end, as both the TXBD_CRC bit in the Tx Buffer Descriptor and the CRCEN bit in the Mode Register (MODER) are not set. This is however not supported yet, the Ethernet Controller must be configured to generate the CRC itself.", `ETHDPI_ERROR_PREFIX );
                                     $finish;
-                                 end;
+                                 end
 
                                /* $display( "%sSetting Tx Buffer Descriptor: data len: %d",
                                          `ETHDPI_TRACE_PREFIX,
@@ -731,12 +732,12 @@ module ethernet_dpi (
                                     $display( "%sThe client is trying to set reserved bits in the Rx Buffer Descriptor, which is probably an error. The addr was: 0x%08h, BD index was: 0x%08h, the data was: 0x%08h",
                                               `ETHDPI_ERROR_PREFIX, wb_adr_i, bd_index, wb_dat_i );
                                     $finish;
-                                 end;
+                                 end
 
                                /* $display( "%sSetting Rx Buffer Descriptor: data len: %d",
                                          `ETHDPI_TRACE_PREFIX,
                                          wb_dat_i[`ETHDPI_RXBD_LEN] ); */
-                            end;
+                            end
 
                           buffer_descriptor_flags[ bd_index ] <= wb_dat_i;
                        end
@@ -750,7 +751,7 @@ module ethernet_dpi (
                             begin
                                $display( "%sThe client is trying to write an unaligned memory address to a Buffer Descriptor, but this Ethernet simulation model does not support unaligned memory addresses.", `ETHDPI_ERROR_PREFIX );
                                $finish;
-                            end;
+                            end
 
                           buffer_descriptor_addresses[ bd_index ] <= wb_dat_i;
                        end
@@ -767,8 +768,8 @@ module ethernet_dpi (
                        begin
                           $display( "%sDefault case for Wishbone write wb_adr_i=0x%02X.", `ETHDPI_ERROR_PREFIX, wb_adr_i );
                           $finish;
-                       end;
-                  end;
+                       end
+                  end
              end
          endcase;
       end
@@ -816,7 +817,7 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is trying to read the MIIRX_DATA register, but the value in the MIICOMMAND register is not supported yet.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 // The "Link Established" bit is documented as 'sticky', but that does not really matter here,
                 // as we are always reporting a "link up" status.
@@ -865,7 +866,7 @@ module ethernet_dpi (
                      $finish;
                      // In case you comment out the error above:
                      wb_dat_o <= 0;
-                  end;
+                  end
              end
          endcase;
       end
@@ -923,13 +924,13 @@ module ethernet_dpi (
                        begin
                           $display( "%sThe data length to send is too small.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
+                       end
 
                      if ( 0 != ethernet_dpi_new_tx_frame( obj ) )
                        begin
                           $display( "%sError preparing a new Ethernet frame to send.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
+                       end
 
                      m_wb_adr_o <= buffer_descriptor_addresses[ current_tx_bd_index ];
                      m_wb_we_o  <= 0;
@@ -1003,7 +1004,7 @@ module ethernet_dpi (
                                  begin
                                     $display( "%sError discarding the received frame in the DPI module.", `ETHDPI_ERROR_PREFIX );
                                     $finish;
-                                 end;
+                                 end
                             end
                           else
                             begin
@@ -1018,10 +1019,13 @@ module ethernet_dpi (
 
                                current_dma_addr_offset <= 0;
 
+                               if ( TRACE_DMA_TRAFFIC )
+                                 $display( "%sWriting Rx data over DMA: 0x%08X", `ETHDPI_TRACE_PREFIX, data );
+
                                current_state <= state_waiting_for_dma_write_to_complete;
-                            end;
-                       end;
-                  end;
+                            end
+                       end
+                  end
              end
 
            state_waiting_for_dma_read_to_complete:
@@ -1033,42 +1037,46 @@ module ethernet_dpi (
                   end
                 else if ( m_wb_ack_i )
                   begin
-                     // $display( "%sTx data received: 0x%08X", `ETHDPI_TRACE_PREFIX, m_wb_dat_i );
                      // This includes the bytes being read at this Wishbone cycle.
                      int byte_count_left = { 16'h0, buffer_descriptor_flags[ current_tx_bd_index ] [`ETHDPI_TXBD_LEN] } - current_dma_addr_offset;
+
+                     if ( TRACE_DMA_TRAFFIC )
+                       begin
+                          $display( "%sTx data read over DMA: 0x%08X", `ETHDPI_TRACE_PREFIX, m_wb_dat_i );
+                       end
 
                      if ( byte_count_left < 1 )
                        begin
                           $display( "%sInternal error calculating the DMA addresses.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
+                       end
 
                      if ( 0 != ethernet_dpi_add_byte_to_tx_frame( obj, m_wb_dat_i[ 31:24 ] ) )
                        begin
                           $display( "%sError appending to the DPI tx queue.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
+                       end
 
                      if ( byte_count_left >= 2 )  // In a separate if(), as Verilator does not support short-circuit expression evaluation yet (as of Dec 2011).
                        if ( 0 != ethernet_dpi_add_byte_to_tx_frame( obj, m_wb_dat_i[ 23:16 ] ) )
                        begin
                           $display( "%sError appending to the DPI tx queue.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
+                       end
 
                      if ( byte_count_left >= 3 )
                        if ( 0 != ethernet_dpi_add_byte_to_tx_frame( obj, m_wb_dat_i[ 15:8  ] ) )
                        begin
                           $display( "%sError appending to the DPI tx queue.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
+                       end
 
                      if ( byte_count_left >= 4 )
                        if ( 0 != ethernet_dpi_add_byte_to_tx_frame( obj, m_wb_dat_i[  7:0  ] ) )
                        begin
                           $display( "%sError appending a byte to the tx Ethernet frame.", `ETHDPI_ERROR_PREFIX );
                           $finish;
-                       end;
+                       end
 
                      stop_wishbone_master_cycle;
 
@@ -1078,7 +1086,7 @@ module ethernet_dpi (
                             begin
                                $display( "%sError sending the DPI frame.", `ETHDPI_ERROR_PREFIX );
                                $finish;
-                            end;
+                            end
 
                           buffer_descriptor_flags[ current_tx_bd_index ][`ETHDPI_TXBD_RD  ] <= 0;
                           buffer_descriptor_flags[ current_tx_bd_index ][`ETHDPI_TXBD_UR  ] <= 0;
@@ -1092,7 +1100,7 @@ module ethernet_dpi (
                             begin
                                // $display( "%sSetting the Tx interrupt source bit", `ETHDPI_TRACE_PREFIX );
                                ethreg_int[`ETHDPI_INT_TXB] <= 1;
-                            end;
+                            end
 
                           if ( buffer_descriptor_flags[ current_tx_bd_index ][`ETHDPI_TXBD_WR] )
                             current_tx_bd_index <= 0;
@@ -1112,7 +1120,7 @@ module ethernet_dpi (
                 else
                   begin
                      // Nothing to do here, just wait for the next time around.
-                  end;
+                  end
              end
 
            state_waiting_for_dma_write_to_complete:
@@ -1135,7 +1143,7 @@ module ethernet_dpi (
                             begin
                                $display( "%sError discarding the received frame in the DPI module.", `ETHDPI_ERROR_PREFIX );
                                $finish;
-                            end;
+                            end
 
                           buffer_descriptor_flags[ current_rx_bd_index ][`ETHDPI_RXBD_RD ] <= 0;
                           buffer_descriptor_flags[ current_rx_bd_index ] &= `ETHDPI_RXBD_CLEAR_ERRORS_MASK;
@@ -1146,7 +1154,7 @@ module ethernet_dpi (
                             begin
                                // $display( "%sSetting the Rx interrupt source bit", `ETHDPI_TRACE_PREFIX );
                                ethreg_int[`ETHDPI_INT_RXF] <= 1;
-                            end;
+                            end
 
                           if ( buffer_descriptor_flags[ current_rx_bd_index ][`ETHDPI_RXBD_WR] )
                             current_rx_bd_index <= ethreg_tx_bd_num;
@@ -1166,7 +1174,7 @@ module ethernet_dpi (
                 else
                   begin
                      // Nothing to do here, just wait for the next time around.
-                  end;
+                  end
              end
 
            state_wait_state_between_dma_reads:
@@ -1247,7 +1255,7 @@ module ethernet_dpi (
            begin
               buffer_descriptor_flags    [i] = 0;
               buffer_descriptor_addresses[i] = 0;
-           end;
+           end
 
          current_state = state_idle;
          current_tx_bd_index = 0;
@@ -1291,7 +1299,7 @@ module ethernet_dpi (
                 // Use = instead of <= , for Verilator (as of dic 2011) cannot use <= in loops that initialise arrays like this.
                 buffer_descriptor_flags    [i] = 0;
                 buffer_descriptor_addresses[i] = 0;
-             end;
+             end
 
            current_state <= state_idle;
            current_tx_bd_index <= 0;
@@ -1310,7 +1318,7 @@ module ethernet_dpi (
              begin
                 $display( "%sError calling ethernet_dpi_tick().", `ETHDPI_ERROR_PREFIX );
                 $finish;
-             end;
+             end
 
            step_state_machine( received_frame_byte_count, ready_to_send );
 
@@ -1331,21 +1339,21 @@ module ethernet_dpi (
                   begin
                      $display( "%sThe client is trying to read from or write to an unaligned memory address over the Wishbone bus, but this Ethernet model implementation does not support unaligned Wishbone memory addresses.", `ETHDPI_ERROR_PREFIX );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_sel_i != `ETHDPI_EXPECTED_WB_SEL_VALUE )
                   begin
                      $display( "%sThe client is using an unexpected Wishbone wb_sel_i value of 0x%02X.", `ETHDPI_ERROR_PREFIX, wb_sel_i );
                      $finish;
-                  end;
+                  end
 
                 if ( wb_we_i )
                   wishbone_write();
                 else
                   wishbone_read();
-             end;
-        end;
-   end;
+             end
+        end
+   end
 
 
    initial
@@ -1359,7 +1367,7 @@ module ethernet_dpi (
           begin
              $display( "%sError creating the object instance.", `ETHDPI_ERROR_PREFIX );
              $finish;
-          end;
+          end
 
         initial_reset;
      end
