@@ -166,7 +166,7 @@ module ethernet_dpi #(
                      input wire                           wb_cyc_i,
                      input wire                           wb_stb_i,
                      output wire                          wb_ack_o,
-                     output wire                          wb_err_o,
+                     output wire                          wb_err_o,  // Never set, any attempt to use an invalid address terminates the simulation.
 
                      // WISHBONE master, used by the Ethernet Controller to access the main memory in a DMA fashion.
                      output wire [`ETHDPI_ADDR_WIDTH-1:0] m_wb_adr_o,
