@@ -1,5 +1,5 @@
 
-/* Version 0.84 beta, October 2012.
+/* Version 0.85 beta, October 2012.
 
   See the README file for information about this module.
 
@@ -166,7 +166,7 @@ module ethernet_dpi #(
                      input wire                           wb_cyc_i,
                      input wire                           wb_stb_i,
                      output wire                          wb_ack_o,
-                     output wire                          wb_err_o,  // Never set, any attempt to use an invalid address terminates the simulation.
+                     output wire                          wb_err_o,
 
                      // WISHBONE master, used by the Ethernet Controller to access the main memory in a DMA fashion.
                      output wire [`ETHDPI_ADDR_WIDTH-1:0] m_wb_adr_o,
@@ -382,8 +382,9 @@ module ethernet_dpi #(
                 if ( wb_adr_i <  `ETHDPI_BUFFER_DESCRIPTORS_BEGIN ||
                      wb_adr_i >= `ETHDPI_BUFFER_DESCRIPTORS_END   )
                   begin
-                     $display( "%sDefault case in for Wishbone write wb_adr_i=0x%02X.", `ETHDPI_ERROR_PREFIX, wb_adr_i );
-                     $finish;
+                     // Don't error here, we do that below.
+                     // $display( "%sDefault case in for Wishbone write wb_adr_i=0x%02X.", `ETHDPI_ERROR_PREFIX, wb_adr_i );
+                     // $finish;
                   end
              end
          endcase;
@@ -766,8 +767,10 @@ module ethernet_dpi #(
                        end
                      else
                        begin
-                          $display( "%sDefault case for Wishbone write wb_adr_i=0x%02X.", `ETHDPI_ERROR_PREFIX, wb_adr_i );
-                          $finish;
+                          $display( "%sInvalid Wishbone address 0x%08X, write cycle. Reported as a bus error by asserting wb_err_o.",
+                               `ETHDPI_ERROR_PREFIX, wb_adr_i );
+                          wb_ack_o <= 0;
+                          wb_err_o <= 1;
                        end
                   end
              end
@@ -862,10 +865,11 @@ module ethernet_dpi #(
                   end
                 else
                   begin
-                     $display( "%sDefault case for Wishbone read wb_adr_i=0x%02X.", `ETHDPI_ERROR_PREFIX, wb_adr_i );
-                     $finish;
-                     // In case you comment out the error above:
-                     wb_dat_o <= 0;
+                     $display( "%sInvalid Wishbone address 0x%08X, read cycle. Reported as a bus error by asserting wb_err_o.",
+                               `ETHDPI_ERROR_PREFIX, wb_adr_i );
+                     wb_dat_o <= {`ETHDPI_DATA_WIDTH{1'bx}};
+                     wb_ack_o <= 0;
+                     wb_err_o <= 1;
                   end
              end
          endcase;
@@ -1329,10 +1333,15 @@ module ethernet_dpi #(
 
            if ( wb_cyc_i &&
                 wb_stb_i &&
-                !wb_ack_o  // If we answered in the last cycle, finish the transaction in this one by clearing wb_ack_o.
+                !wb_ack_o &&  // If we answered in the last cycle, finish the transaction in this one by clearing wb_ack_o.
+                !wb_err_o
               )
              begin
-                wb_ack_o <= 1;  // We can always answer straight away, without delays.
+                // We can always answer straight away, without delays. By default,
+                // prepare the "OK" answer. This can be overwritten below
+                // if the Wishbone address is invalid.
+                wb_ack_o <= 1;
+                wb_err_o <= 0;
 
                 // I am not sure if we would ever see unaligned Wishbone addresses at this point.
                 if ( 0 != ( wb_adr_i % 4 ) )
@@ -1343,14 +1352,17 @@ module ethernet_dpi #(
 
                 if ( wb_sel_i != `ETHDPI_EXPECTED_WB_SEL_VALUE )
                   begin
-                     $display( "%sThe client is using an unexpected Wishbone wb_sel_i value of 0x%02X.", `ETHDPI_ERROR_PREFIX, wb_sel_i );
-                     $finish;
+                     $display( "%sThe client is using an unexpected Wishbone wb_sel_i value of 0x%02X. Reported as a bus error by asserting wb_err_o.", `ETHDPI_ERROR_PREFIX, wb_sel_i );
+                     wb_ack_o <= 0;
+                     wb_err_o <= 1;
                   end
-
-                if ( wb_we_i )
-                  wishbone_write();
                 else
-                  wishbone_read();
+                  begin
+                     if ( wb_we_i )
+                       wishbone_write();
+                     else
+                       wishbone_read();
+                  end
              end
         end
    end
