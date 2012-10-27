@@ -40,6 +40,7 @@
 #include <errno.h>
 #include <stdarg.h>
 
+#include <unistd.h>  // For close().
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <linux/if_tun.h>
