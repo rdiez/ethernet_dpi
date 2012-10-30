@@ -1,5 +1,5 @@
 
-/* Version 0.82 beta, September 2012.
+/* Version 0.86 beta, September 2012.
 
    See the README file for information about this module.
 
