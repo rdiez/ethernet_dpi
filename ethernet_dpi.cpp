@@ -4,26 +4,26 @@
    See the README file for information about this module.
 
    During development, use compiler flag -DDEBUG in order to enable assertions.
-   
+
    Copyright (c) 2011 R. Diez
-                                                             
-   This source file may be used and distributed without        
-   restriction provided that this copyright statement is not   
-   removed from the file and that any derivative work contains 
+
+   This source file may be used and distributed without
+   restriction provided that this copyright statement is not
+   removed from the file and that any derivative work contains
    the original copyright notice and the associated disclaimer.
-                                                             
-   This source file is free software; you can redistribute it  
-   and/or modify it under the terms of the GNU Lesser General  
+
+   This source file is free software; you can redistribute it
+   and/or modify it under the terms of the GNU Lesser General
    Public License version 3 as published by the Free Software Foundation.
-                                                             
-   This source is distributed in the hope that it will be      
-   useful, but WITHOUT ANY WARRANTY; without even the implied  
-   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR     
+
+   This source is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied
+   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
    PURPOSE.  See the GNU Lesser General Public License for more
-   details.                                                    
-                                                             
-   You should have received a copy of the GNU Lesser General   
-   Public License along with this source; if not, download it  
+   details.
+
+   You should have received a copy of the GNU Lesser General
+   Public License along with this source; if not, download it
    from http://www.gnu.org/licenses/
 */
 
@@ -74,7 +74,7 @@ class ethernet_dpi
 private:
   bool m_print_informational_messages;
   std::string m_informational_message_prefix;
-  
+
   int m_tun_tap_clone_device;
   int m_socket;
   int m_mtu;
@@ -93,7 +93,7 @@ public:
 
   void tick ( int * received_frame_byte_count,
               unsigned char * ready_to_send );
-  
+
   void new_tx_frame ( void );
   void add_byte_to_tx_frame ( char data );
   void send_tx_frame ( void );
@@ -116,10 +116,10 @@ private:
 static std::string format_msg_v ( const char * format_str, va_list arg_list )
 {
     std::string ret;
-  
+
     char * str;
-    const int res = vasprintf( &str, format_str, arg_list ); 
-    
+    const int res = vasprintf( &str, format_str, arg_list );
+
     if ( -1 == res )
       throw std::bad_alloc();
 
@@ -159,20 +159,20 @@ static std::string format_error_message ( const int errno_val,
   va_start( arg_list, prefix_msg_fmt );
 
   const std::string prefix_msg = format_msg_v( prefix_msg_fmt, arg_list );
-  
+
   va_end( arg_list );
 
-  
+
   char buffer[ 2048 ];
 
   #if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE
   #error "The call to strerror_r() below will not compile properly. The easiest thing to do is to define _GNU_SOURCE when compiling this module."
   #endif
-  
+
   const char * const strerror_msg = strerror_r( errno_val, buffer, sizeof(buffer) );
 
   std::string sys_msg;
-  
+
   if ( strerror_msg == NULL )
   {
     sys_msg = "<no error message available>";
@@ -181,7 +181,7 @@ static std::string format_error_message ( const int errno_val,
   {
     // According to the strerror_r() documentation, if the string lands in the buffer,
     // it may be truncated, but it always includes a terminating null byte.
-    
+
     sys_msg = strerror_msg;
   }
 
@@ -196,7 +196,7 @@ static std::string format_error_message ( const int errno_val,
 static std::string ip_address_to_text ( const in_addr * const addr )
 {
   char ip_addr_buffer[80];
-  
+
   const char * const str = inet_ntop( AF_INET,
                                       addr,
                                       ip_addr_buffer,
@@ -223,7 +223,7 @@ static void close_a ( const int fd )
         continue;
 
     assert( res == 0 );
-    
+
     break;
   }
 }
@@ -266,7 +266,7 @@ void ethernet_dpi::release_resources ( void )
 
   if ( m_socket != -1 )
     close_socket();
-  
+
   free( m_send_buffer );
   m_send_buffer = NULL;
 
@@ -285,13 +285,13 @@ void ethernet_dpi::init ( const char * const tap_interface_name,
   {
     throw std::runtime_error( "Invalid tap_interface_name parameter." );
   }
-  
+
   switch ( print_informational_messages )
   {
   case 0:
     m_print_informational_messages = false;
     break;
-      
+
   case 1:
     m_print_informational_messages = true;
     break;
@@ -332,10 +332,10 @@ void ethernet_dpi::init ( const char * const tap_interface_name,
                                                     "Error opening/creating TAP interface \"%s\": ",
                                                     tap_interface_name ) );
   }
-    
+
   // Create a socket. We need one in order to retrieve some information from a network interface.
   m_socket = socket( AF_INET, SOCK_DGRAM, 0 );
-  
+
   if ( m_socket == -1 )
   {
     throw std::runtime_error( format_error_message( errno,
@@ -369,7 +369,7 @@ void ethernet_dpi::init ( const char * const tap_interface_name,
   m_mtu = ifr_getmtu.ifr_mtu;
 
   close_socket();  // We don't really need the socket any more.
-  
+
   if ( m_print_informational_messages )
   {
     printf( "%sUsing TAP interface \"%s\", IP addr: %s, MTU: %d.\n",
@@ -381,14 +381,14 @@ void ethernet_dpi::init ( const char * const tap_interface_name,
   }
 
   const size_t buffer_size = m_mtu + MTU_MARGIN + 1;  // We read one byte more than the MTU in order to know if the frame is longer than the maximum allowed.
-  
+
   m_send_buffer    = (char *) malloc( buffer_size );
   m_receive_buffer = (char *) malloc( buffer_size );
 
   if ( m_send_buffer == NULL || m_receive_buffer == NULL )
     throw std::bad_alloc();
 
-  
+
   // Notes about the TAP interface's receive buffer.
   //
   // From empiric evidence under Ubuntu 10.04, it looks like a persistent TAP interface drops
@@ -448,9 +448,9 @@ void ethernet_dpi::add_byte_to_tx_frame ( const char data )
 
   if ( dump_tx_byte )
     printf( "Adding tx byte: 0x%02X\n", (unsigned char)data );
-  
+
   m_send_buffer[ m_send_byte_count ] = data;
-  
+
   ++m_send_byte_count;
 }
 
@@ -484,14 +484,14 @@ void ethernet_dpi::send_tx_frame ( void )
     {
       throw std::runtime_error( "Cannot write data to the TAP interface." );
     }
-    
+
     if ( sent_byte_count == -1 )
     {
       const int errno_value = errno;
 
       if ( errno_value == EINTR )
         continue;
-      
+
       throw std::runtime_error( format_error_message( errno, "Error writing data to the TAP interface: " ) );
     }
 
@@ -508,9 +508,9 @@ void ethernet_dpi::send_tx_frame ( void )
 void ethernet_dpi::close_tap ( void )
 {
   assert( m_tun_tap_clone_device != -1 );
-  
+
   close_a( m_tun_tap_clone_device );
-  
+
   m_tun_tap_clone_device = -1;
 }
 
@@ -518,9 +518,9 @@ void ethernet_dpi::close_tap ( void )
 void ethernet_dpi::close_socket ( void )
 {
   assert( m_socket != -1 );
-  
+
   close_a( m_socket );
-  
+
   m_socket = -1;
 }
 
@@ -543,7 +543,7 @@ int ethernet_dpi::receive_frame ( void )
     {
       if ( errno == EINTR )
         continue;
-      
+
       throw std::runtime_error( format_error_message( errno, "Error polling the TAP interface to receive: " ) );
     }
 
@@ -551,7 +551,7 @@ int ethernet_dpi::receive_frame ( void )
       return 0;
 
     assert( poll_res == 1 );
-    
+
     break;
   }
 
@@ -564,14 +564,14 @@ int ethernet_dpi::receive_frame ( void )
     {
       throw std::runtime_error( "Cannot read data from the TAP interface." );
     }
-    
+
     if ( received_byte_count == -1 )
     {
       const int errno_value = errno;
 
       if ( errno_value == EINTR )
         continue;
-      
+
       if ( errno_value == EAGAIN || errno_value == EWOULDBLOCK )
       {
         // No data available yet. This shouldn't happen, as we have called poll() before,
@@ -588,7 +588,7 @@ int ethernet_dpi::receive_frame ( void )
       printf( "Received byte count: %u\n", unsigned(received_byte_count) );
       fflush( stdout );
     }
-    
+
     if ( received_byte_count > ssize_t( m_mtu + MTU_MARGIN ) )
     {
       throw std::runtime_error( "Error reading data from the TAP interface, the received packet is bigger than the MTU." );
@@ -609,11 +609,11 @@ void ethernet_dpi::tick ( int * const received_frame_byte_count,
 
   *received_frame_byte_count = m_received_byte_count;
 
-  
+
   // Possible optimisation: if the TAP interface was ready to send the last time,
   // and we have not sent or received anything, then it should still be ready to send,
   // there is no need to poll.
-  
+
   for ( ; ; )  // Repeat if EINTR.
   {
     pollfd polled_fd;
@@ -628,7 +628,7 @@ void ethernet_dpi::tick ( int * const received_frame_byte_count,
     {
       if ( errno == EINTR )
         continue;
-      
+
       throw std::runtime_error( format_error_message( errno, "Error polling the TAP interface to send: " ) );
     }
 
@@ -669,9 +669,9 @@ int ethernet_dpi_create ( const char * const tap_interface_name,
 {
   *obj = 0;  // In case of error, return the equivalent of NULL.
              // Otherwise, the 'final' Verilog section must check whether ethernet_dpi_create() failed before calling ethernet_dpi_destroy().
-  
+
   ethernet_dpi * this_obj = NULL;
-  
+
   try
   {
     this_obj = new ethernet_dpi( tap_interface_name,
@@ -686,7 +686,7 @@ int ethernet_dpi_create ( const char * const tap_interface_name,
     fflush( stderr );
 
     delete this_obj;
-    
+
     return RET_FAILURE;
   }
   catch ( ... )
@@ -695,7 +695,7 @@ int ethernet_dpi_create ( const char * const tap_interface_name,
     fflush( stderr );
 
     delete this_obj;
-    
+
     return RET_FAILURE;
   }
 
@@ -708,7 +708,7 @@ int ethernet_dpi_create ( const char * const tap_interface_name,
 void ethernet_dpi_destroy ( const long long obj )
 {
   const ethernet_dpi * const this_obj = (const ethernet_dpi *)obj;
-  
+
   delete this_obj;
 }
 
@@ -723,9 +723,9 @@ int ethernet_dpi_tick ( const long long obj,
 
     if ( this_obj == NULL )
       throw std::runtime_error( "Invalid obj parameter." );
-    
+
     this_obj->tick( received_frame_byte_count, ready_to_send );
-    
+
     return RET_SUCCESS;
   }
   catch ( const std::exception & e )
@@ -755,9 +755,9 @@ int ethernet_dpi_flush_tap_receive_buffer ( const long long obj )
 
     if ( this_obj == NULL )
       throw std::runtime_error( "Invalid obj parameter." );
-    
+
     this_obj->flush_tap_receive_buffer();
-    
+
     return RET_SUCCESS;
   }
   catch ( const std::exception & e )
@@ -787,9 +787,9 @@ int ethernet_dpi_add_byte_to_tx_frame ( const long long obj, const char data )
 
     if ( this_obj == NULL )
       throw std::runtime_error( "Invalid obj parameter." );
-    
+
     this_obj->add_byte_to_tx_frame( data );
-    
+
     return RET_SUCCESS;
   }
   catch ( const std::exception & e )
@@ -819,9 +819,9 @@ int ethernet_dpi_new_tx_frame ( const long long obj )
 
     if ( this_obj == NULL )
       throw std::runtime_error( "Invalid obj parameter." );
-    
+
     this_obj->new_tx_frame();
-    
+
     return RET_SUCCESS;
   }
   catch ( const std::exception & e )
@@ -851,9 +851,9 @@ int ethernet_dpi_send_tx_frame ( const long long obj )
 
     if ( this_obj == NULL )
       throw std::runtime_error( "Invalid obj parameter." );
-    
+
     this_obj->send_tx_frame();
-    
+
     return RET_SUCCESS;
   }
   catch ( const std::exception & e )
@@ -939,4 +939,3 @@ int ethernet_dpi_discard_received_frame ( const long long obj )
 
   return RET_SUCCESS;
 }
-
