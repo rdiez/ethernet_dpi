@@ -68,6 +68,10 @@ static const char ERROR_MSG_PREFIX[] = "Error in the Ethernet DPI module: ";
 // out of 1500, which should normally be OK.
 static const char MTU_MARGIN = 36;
 
+static const char CRC_LENGTH = 4;
+
+// The Linux and eCos drivers assume that the CRC is added at the end, althought it's actually discarded.
+static const bool APPEND_DUMMY_CRC = true;
 
 class ethernet_dpi
 {
@@ -380,7 +384,7 @@ void ethernet_dpi::init ( const char * const tap_interface_name,
     fflush( stdout );
   }
 
-  const size_t buffer_size = m_mtu + MTU_MARGIN + 1;  // We read one byte more than the MTU in order to know if the frame is longer than the maximum allowed.
+  const size_t buffer_size = m_mtu + MTU_MARGIN + 1 + CRC_LENGTH;  // We read one byte more than the MTU in order to know if the frame is longer than the maximum allowed.
 
   m_send_buffer    = (char *) malloc( buffer_size );
   m_receive_buffer = (char *) malloc( buffer_size );
@@ -557,9 +561,9 @@ int ethernet_dpi::receive_frame ( void )
 
   for ( ; ; )  // Repeat if EINTR.
   {
-    const ssize_t received_byte_count = read( m_tun_tap_clone_device,
-                                              m_receive_buffer,
-                                              m_mtu + MTU_MARGIN + 1 );
+    ssize_t received_byte_count = read( m_tun_tap_clone_device,
+                                        m_receive_buffer,
+                                        m_mtu + MTU_MARGIN + 1 );
     if ( received_byte_count == 0 )
     {
       throw std::runtime_error( "Cannot read data from the TAP interface." );
@@ -592,6 +596,16 @@ int ethernet_dpi::receive_frame ( void )
     if ( received_byte_count > ssize_t( m_mtu + MTU_MARGIN ) )
     {
       throw std::runtime_error( "Error reading data from the TAP interface, the received packet is bigger than the MTU." );
+    }
+
+    if ( APPEND_DUMMY_CRC )
+    {
+      // The dummy CRC is "DEADFOOD" in hex.
+      assert( CRC_LENGTH == 4 );
+      m_receive_buffer[ received_byte_count++ ] = 0xDE;
+      m_receive_buffer[ received_byte_count++ ] = 0xAD;
+      m_receive_buffer[ received_byte_count++ ] = 0xF0;
+      m_receive_buffer[ received_byte_count++ ] = 0x0D;
     }
 
     return (int) received_byte_count;

@@ -49,6 +49,13 @@ provide no such error checking.
 
 =head2 Caveats
 
+=head3 The received CRC has a fixed value
+
+The Linux and eCos drivers assume that the received 32-bit Ethernet CRC is always appended, although it's actually discarded.
+
+The TAP interface does not use CRCs, so this DPI module does not calculate, send or receive one. However,
+before handing an ethernet frame over to the user, this module always appends 4 bytes with the dummy CRC value 0xDEADF00D.
+
 =head3 The Wishbone address includes the 2 lower bits
 
 The real Ethernet interface, at least as included in the MinSoC project as of Dic 2011, does not seem to

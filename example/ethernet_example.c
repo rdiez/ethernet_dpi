@@ -591,6 +591,9 @@ static int process_received_frame ( const int frame_len )
         return 0;
     }
 
+    // After the ARP information, at the end of the Ethernet packet, comes the dummy CRC,
+    // which should be 4 bytes with value 0xDEADF00D.
+
     uart_print( UART1_BASE_ADDR, "Sending the ARP reply..." EOL );
 
     start_ethernet_send( ARP_FRAME_LENGTH );
