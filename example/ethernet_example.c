@@ -174,14 +174,14 @@ void wait_until_link_is_up ( void )
 {
     const uint32_t ETHDPI_MIICOMMAND_RSTAT = 1 << 1;  // Read Status.
     const uint32_t ETHDPI_MII_RSTAT_LINK_ESTABLISHED_MASK = 0x04;
-        
+
     for ( ; ; )
     {
         REG32( ETH_BASE + ETH_MIIADDRESS ) = 1<<8;  // Value ignored by the DPI module.
 
         REG32( ETH_BASE + ETH_MIICOMMAND ) = ETHDPI_MIICOMMAND_RSTAT;
         wait_until_miistatus_not_busy();
-        
+
         if ( REG32( ETH_BASE + ETH_MIIRX_DATA ) & ETHDPI_MII_RSTAT_LINK_ESTABLISHED_MASK )
             break;
     }
@@ -202,7 +202,7 @@ static void init_ethernet ( void )
     REG32(ETH_BASE + ETH_MAC_ADDR0) = (OWN_MAC_ADDRESS_3 << 24) |
                                       (OWN_MAC_ADDRESS_2 << 16) |
                                       (OWN_MAC_ADDRESS_1 << 8) |
-                                       OWN_MAC_ADDRESS_0;     
+                                       OWN_MAC_ADDRESS_0;
 
     REG32(ETH_BASE + ETH_PACKETLEN) = ( 64 << 16 ) | MAX_FRAME_LEN;
 
@@ -211,7 +211,7 @@ static void init_ethernet ( void )
 
     // Reset all buffer descriptors.
     REG32( ETH_BASE + ETH_TX_BD_NUM ) = TX_BD_COUNT;
-    
+
     uint32_t i;
     for ( i = 0; i < BUFFER_DESCRIPTOR_COUNT; ++i )
     {
@@ -220,7 +220,7 @@ static void init_ethernet ( void )
 
     s_current_tx_bd_index = 0;
     s_current_rx_bd_index = TX_BD_COUNT;
-    
+
     wait_until_link_is_up();
 
     REG32(ETH_BASE + ETH_MODER) = ETH_TXEN | ETH_RXEN | ETH_PAD | ETH_CRCEN | ETH_FULLD;
@@ -230,12 +230,12 @@ static void init_ethernet ( void )
 static void start_ethernet_send ( const int length )
 {
     REG32( get_bd_ptr_addr( s_current_tx_bd_index ) ) = (unsigned long) eth_tx_packet;
-    
+
     uint16_t send_flags = ETH_TXBD_READY | ETH_TXBD_IRQ | ETH_TXBD_PAD | ETH_TXBD_CRC;
 
     if ( s_current_tx_bd_index == TX_BD_COUNT - 1 )
         send_flags += ETH_TXBD_WRAP;
-    
+
     REG32( get_bd_status_addr( s_current_tx_bd_index ) ) = ( ( 0x0000FFFF & length ) << 16 ) | send_flags;
 }
 
@@ -243,12 +243,12 @@ static void start_ethernet_send ( const int length )
 static void eth_interrupt ( void * const context )
 {
     unsigned long source = REG32(ETH_BASE + ETH_INT_SOURCE);
-    
+
     if ( source & ETH_TXB )
     {
         uart_print( UART1_BASE_ADDR, "Ethernet transmit interrupt received." EOL );
     }
-    
+
     if ( source & ETH_RXB )
     {
         uart_print( UART1_BASE_ADDR, "Ethernet receive interrupt received." EOL );
@@ -376,7 +376,7 @@ static int process_received_frame ( const int frame_len )
     //     sudo ./arping -w 10000000 -c 1 -i dpi-tap1 192.168.254.1
 
     const int ARP_FRAME_LENGTH = 42;
-    
+
     if ( frame_len < ARP_FRAME_LENGTH )
     {
         uart_print( UART1_BASE_ADDR, "The frame is too short to be the kind of ARP frame we are looking for." EOL );
@@ -399,7 +399,7 @@ static int process_received_frame ( const int frame_len )
     pos += MAC_ADDR_LEN;
 
     const int src_mac_addr_pos = pos;
-    
+
     uart_print( UART1_BASE_ADDR, "Received broadcast frame from MAC address " );
     print_mac_address( &eth_rx_packet[ pos ] );
     uart_print( UART1_BASE_ADDR, EOL );
@@ -419,7 +419,7 @@ static int process_received_frame ( const int frame_len )
 
     const unsigned char ETHERNET_HARDWARE_TYPE_HI = 0x00;
     const unsigned char ETHERNET_HARDWARE_TYPE_LO = 0x01;
-    
+
     if ( eth_rx_packet[ pos + 0 ] != ETHERNET_HARDWARE_TYPE_HI ||
          eth_rx_packet[ pos + 1 ] != ETHERNET_HARDWARE_TYPE_LO )
     {
@@ -428,10 +428,10 @@ static int process_received_frame ( const int frame_len )
     }
 
     pos += 2;
-    
+
     const unsigned char IP_PROTOCOL_HI = 0x08;
     const unsigned char IP_PROTOCOL_LO = 0x00;
-    
+
     if ( eth_rx_packet[ pos + 0 ] != IP_PROTOCOL_HI ||
          eth_rx_packet[ pos + 1 ] != IP_PROTOCOL_LO )
     {
@@ -442,7 +442,7 @@ static int process_received_frame ( const int frame_len )
     pos += 2;
 
     const unsigned char HARDWARE_SIZE = MAC_ADDR_LEN;
-    
+
     if ( eth_rx_packet[ pos ] != HARDWARE_SIZE )
     {
         uart_print( UART1_BASE_ADDR, "The ARP frame has an invalid hardware size." EOL );
@@ -450,9 +450,9 @@ static int process_received_frame ( const int frame_len )
     }
 
     pos += 1;
-    
+
     const unsigned char PROTOCOL_SIZE = IP_ADDR_LEN;
-    
+
     if ( eth_rx_packet[ pos ] != PROTOCOL_SIZE )
     {
         uart_print( UART1_BASE_ADDR, "The ARP frame has an invalid protocol size." EOL );
@@ -465,7 +465,7 @@ static int process_received_frame ( const int frame_len )
     const unsigned char OPCODE_REQUEST_LO = 0x01;
     const unsigned char OPCODE_REPLY_HI = 0x00;
     const unsigned char OPCODE_REPLY_LO = 0x02;
-    
+
     if ( eth_rx_packet[ pos + 0 ] != OPCODE_REQUEST_HI ||
          eth_rx_packet[ pos + 1 ] != OPCODE_REQUEST_LO )
     {
@@ -482,7 +482,7 @@ static int process_received_frame ( const int frame_len )
     pos += MAC_ADDR_LEN;
 
     const int src_ip_addr_pos = pos;
-    
+
     uart_print( UART1_BASE_ADDR, "The ARP sender IP address is " );
     print_ip_address( &eth_rx_packet[ pos ] );
     uart_print( UART1_BASE_ADDR, EOL );
@@ -507,7 +507,7 @@ static int process_received_frame ( const int frame_len )
                            eth_rx_packet[ pos + 3 ] == BROADCAST_ADDRESS_2 &&
                            eth_rx_packet[ pos + 4 ] == BROADCAST_ADDRESS_1 &&
                            eth_rx_packet[ pos + 5 ] == BROADCAST_ADDRESS_0;
-    
+
     if ( !is_zero && !is_bcast  )
     {
         uart_print( UART1_BASE_ADDR, "The target MAC address is neither zero nor 0xFF." EOL );
@@ -515,7 +515,7 @@ static int process_received_frame ( const int frame_len )
     }
 
     pos += MAC_ADDR_LEN;
-    
+
     uart_print( UART1_BASE_ADDR, "The target IP address is " );
     print_ip_address( &eth_rx_packet[ pos ] );
     uart_print( UART1_BASE_ADDR, EOL );
@@ -537,7 +537,7 @@ static int process_received_frame ( const int frame_len )
         return 0;
     }
 
-    
+
     // Build the ARP reply.
 
     pos = 0;
@@ -578,7 +578,7 @@ static int process_received_frame ( const int frame_len )
     eth_tx_packet[ pos + 2 ] = OWN_IP_ADDRESS_2;
     eth_tx_packet[ pos + 3 ] = OWN_IP_ADDRESS_3;
     pos += IP_ADDR_LEN;
-    
+
     copy_mac_address( &eth_rx_packet[ src_mac_addr_pos ], &eth_tx_packet[ pos ] );
     pos += MAC_ADDR_LEN;
 
@@ -592,12 +592,12 @@ static int process_received_frame ( const int frame_len )
     }
 
     uart_print( UART1_BASE_ADDR, "Sending the ARP reply..." EOL );
-    
+
     start_ethernet_send( ARP_FRAME_LENGTH );
     wait_until_frame_was_sent();
 
     uart_print( UART1_BASE_ADDR, "Reply sent." EOL );
-    
+
     return 1;
 }
 
@@ -605,7 +605,7 @@ static int process_received_frame ( const int frame_len )
 void register_read_test ( void )
 {
     unsigned i;
-    
+
     for ( i = 0; i <= ETH_TXCTRL; i += 4 )
     {
         uart_print( UART1_BASE_ADDR, "Ethernet register at address 0x");
@@ -616,7 +616,7 @@ void register_read_test ( void )
     }
 
     const uint32_t tx_bd_count = REG32( ETH_BASE + ETH_TX_BD_NUM );
-    
+
     for ( i = 0; i < BUFFER_DESCRIPTOR_COUNT; ++i )
     {
         if ( i < tx_bd_count )
@@ -629,15 +629,15 @@ void register_read_test ( void )
         }
 
         uart_print_unsigned( UART1_BASE_ADDR, i );
-        
+
         uart_print( UART1_BASE_ADDR, ", flags 0x" );
-        
+
         uart_print_hex( UART1_BASE_ADDR, REG32( get_bd_status_addr( i ) ), 8 );
-        
+
         uart_print( UART1_BASE_ADDR, ", addr 0x" );
-        
+
         uart_print_hex( UART1_BASE_ADDR, REG32( get_bd_ptr_addr( i ) ), 8 );
-        
+
         uart_print( UART1_BASE_ADDR, "." EOL );
     }
 }
@@ -647,7 +647,7 @@ int main ( void )
 {
     int_init();  // This is specific for OpenRISC, you may need to call some other routine here
                  // in order to initialise interrupt support and so on.
-    
+
     // We use a serial port console to display informational messages.
     init_uart( UART1_BASE_ADDR );
 
@@ -664,10 +664,10 @@ int main ( void )
 
     write_broadcast_mac_addr( &eth_tx_packet[ pos ] );
     pos += MAC_ADDR_LEN;
-    
+
     write_own_mac_addr( &eth_tx_packet[ pos ] );
     pos += MAC_ADDR_LEN;
-    
+
     eth_tx_packet[ pos + 0 ] = 0x10;
     eth_tx_packet[ pos + 1 ] = 0x20;
     eth_tx_packet[ pos + 2 ] = 0x30;
@@ -686,7 +686,7 @@ int main ( void )
             ++pos;
         }
     }
-    
+
     start_ethernet_send( pos );
     wait_until_frame_was_sent();
 
@@ -696,10 +696,10 @@ int main ( void )
 
     write_broadcast_mac_addr( &eth_tx_packet[ pos ] );
     pos += MAC_ADDR_LEN;
-    
+
     write_own_mac_addr( &eth_tx_packet[ pos ] );
     pos += MAC_ADDR_LEN;
-    
+
     eth_tx_packet[ pos + 0 ] = 0x11;
     eth_tx_packet[ pos + 1 ] = 0x22;
     eth_tx_packet[ pos + 2 ] = 0x33;
@@ -707,7 +707,7 @@ int main ( void )
     eth_tx_packet[ pos + 4 ] = 0x55;
     eth_tx_packet[ pos + 5 ] = 0x66;
     pos += 6;
-    
+
     start_ethernet_send( pos );
     wait_until_frame_was_sent();
 
@@ -716,13 +716,13 @@ int main ( void )
     {
         register_read_test();
     }
-    
+
 
     // Main infinite loop.
     //
     // Wait for incoming frames, dump their contents and reply to a single type of ARP request.
     // See the README file for an example on how to generate the right type of APR request with arping.
-    
+
     for ( ; ; )
     {
         uart_print( UART1_BASE_ADDR, "Waiting for a frame to be received..." EOL );
@@ -733,11 +733,11 @@ int main ( void )
 
         if ( s_current_rx_bd_index == BUFFER_DESCRIPTOR_COUNT - 1 )
             receive_flags += ETH_RXBD_WRAP;
-        
+
         REG32( get_bd_status_addr( s_current_rx_bd_index ) ) = receive_flags;
 
         uint32_t status;
-        
+
         for ( ; ; )
         {
             status = REG32( get_bd_status_addr( s_current_rx_bd_index ) );
@@ -764,9 +764,9 @@ int main ( void )
         else
         {
             const int eth_rx_len = ( status >> 16 );
-        
+
             const int should_dump_frame_contents = 0;
-        
+
             if ( should_dump_frame_contents )
             {
                 uart_print( UART1_BASE_ADDR, "Received length: " );
@@ -774,23 +774,23 @@ int main ( void )
                 uart_print_int( UART1_BASE_ADDR, eth_rx_len );
                 uart_print( UART1_BASE_ADDR, EOL );
                 uart_print( UART1_BASE_ADDR, "Frame data: " );
-    
+
                 int i;
                 for ( i = 0; i < eth_rx_len; i++ )
                 {
                     uart_print_hex( UART1_BASE_ADDR, eth_rx_packet[i], 2 );
                     uart_print( UART1_BASE_ADDR," " );
                 }
-            
+
                 uart_print( UART1_BASE_ADDR, EOL "End of received data." EOL );
             }
-        
+
             if ( ! process_received_frame( eth_rx_len ) )
             {
                 uart_print( UART1_BASE_ADDR, "The received frame has been ignored." EOL );
             }
         }
-        
+
         ++s_current_rx_bd_index;
 
         if ( s_current_rx_bd_index == BUFFER_DESCRIPTOR_COUNT )
