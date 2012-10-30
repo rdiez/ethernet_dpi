@@ -1143,16 +1143,22 @@ module ethernet_dpi #(
                      // Have we written the last 32 bits? If so, we're done here with the Ethernet frame reception.
                      if ( next_offset >= received_frame_byte_count )
                        begin
+                          reg [31:0] new_val;
+
                           if ( 0 != ethernet_dpi_discard_received_frame( obj ) )
                             begin
                                $display( "%sError discarding the received frame in the DPI module.", `ETHDPI_ERROR_PREFIX );
                                $finish;
                             end
 
-                          buffer_descriptor_flags[ current_rx_bd_index ][`ETHDPI_RXBD_RD ] <= 0;
-                          buffer_descriptor_flags[ current_rx_bd_index ] &= `ETHDPI_RXBD_CLEAR_ERRORS_MASK;
-                          buffer_descriptor_flags[ current_rx_bd_index ][`ETHDPI_RXBD_LEN] <= received_frame_byte_count[15:0];
-                          buffer_descriptor_flags[ current_rx_bd_index ][`ETHDPI_RXBD_M  ] <= received_frame_mac_addr_miss_flag;
+                          new_val = buffer_descriptor_flags[ current_rx_bd_index ];
+
+                          new_val[`ETHDPI_RXBD_RD ] = 0;
+                          new_val &= `ETHDPI_RXBD_CLEAR_ERRORS_MASK;
+                          new_val[`ETHDPI_RXBD_LEN] = received_frame_byte_count[15:0];
+                          new_val[`ETHDPI_RXBD_M  ] = received_frame_mac_addr_miss_flag;
+
+                          buffer_descriptor_flags[ current_rx_bd_index ] <= new_val;
 
                           if ( buffer_descriptor_flags[ current_rx_bd_index ][`ETHDPI_RXBD_IRQ] )
                             begin
@@ -1301,8 +1307,10 @@ module ethernet_dpi #(
            for ( integer i = 0; i < buffer_descriptor_count; i++ )
              begin
                 // Use = instead of <= , for Verilator (as of dic 2011) cannot use <= in loops that initialise arrays like this.
+                /* verilator lint_off BLKSEQ */
                 buffer_descriptor_flags    [i] = 0;
                 buffer_descriptor_addresses[i] = 0;
+                /* verilator lint_on BLKSEQ */
              end
 
            current_state <= state_idle;
