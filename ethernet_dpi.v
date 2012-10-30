@@ -1216,6 +1216,9 @@ module ethernet_dpi #(
                 m_wb_dat_o <= data;
                 start_wishbone_master_cycle;
 
+                if ( TRACE_DMA_TRAFFIC )
+                  $display( "%sWriting Rx data over DMA: 0x%08X", `ETHDPI_TRACE_PREFIX, data );
+
                 current_state <= state_waiting_for_dma_write_to_complete;
              end
 
