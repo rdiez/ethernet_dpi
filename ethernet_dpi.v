@@ -1,5 +1,5 @@
 
-/* Version 0.86 beta, October 2012.
+/* Version 0.87 beta, October 2012.
 
   See the README file for information about this module.
 
@@ -150,7 +150,8 @@ module ethernet_dpi #(
                       // Whether the C++ side prints informational messages to stdout.
                       // Error messages cannot be turned off and get printed to stderr.
                       print_informational_messages = 1,
-                      TRACE_DMA_TRAFFIC = 0
+                      TRACE_DMA_TRAFFIC = 0,
+                      INSERT_WAIT_STATE_BETWEEN_DMA_ACCESSES = 1
                      )
                     (
                      // WISHBONE common
@@ -905,6 +906,51 @@ module ethernet_dpi #(
    endtask
 
 
+   task automatic start_dma_read;
+
+      input int offset;
+
+      begin
+         // $display("%sInitiating next DMA read from address 0x%08X",
+         //          `ETHDPI_TRACE_PREFIX,
+         //          buffer_descriptor_addresses[ current_tx_bd_index ] + offset );
+
+         m_wb_adr_o <= buffer_descriptor_addresses[ current_tx_bd_index ] + offset;
+         m_wb_we_o  <= 0;
+         m_wb_dat_o <= 0;
+         start_wishbone_master_cycle;
+
+         current_state <= state_waiting_for_dma_read_to_complete;
+      end
+   endtask
+
+   task automatic start_dma_write;
+
+      input int received_frame_byte_count;
+      input int offset;
+
+      reg [31:0] data;
+
+      begin
+         // $display( "%sInitiating next DMA write to address 0x%08X",
+         //           `ETHDPI_TRACE_PREFIX,
+         //           buffer_descriptor_addresses[ current_rx_bd_index ] + offset );
+
+         get_32_bits_worth_of_received_frame_data( offset, received_frame_byte_count, data );
+
+         m_wb_adr_o <= buffer_descriptor_addresses[ current_rx_bd_index ] + offset;
+         m_wb_we_o  <= 1;
+         m_wb_dat_o <= data;
+         start_wishbone_master_cycle;
+
+         if ( TRACE_DMA_TRAFFIC )
+           $display( "%sWriting Rx data over DMA: 0x%08X", `ETHDPI_TRACE_PREFIX, data );
+
+         current_state <= state_waiting_for_dma_write_to_complete;
+      end
+   endtask
+
+
    task automatic step_state_machine;
       input int received_frame_byte_count;
       input bit ready_to_send;
@@ -1118,7 +1164,11 @@ module ethernet_dpi #(
                      else
                        begin
                           current_dma_addr_offset <= current_dma_addr_offset + 4;
-                          current_state <= state_wait_state_between_dma_reads;
+
+                          if ( INSERT_WAIT_STATE_BETWEEN_DMA_ACCESSES )
+                            current_state <= state_wait_state_between_dma_reads;
+                          else
+                            start_dma_read( current_dma_addr_offset + 4 );
                        end
                   end
                 else
@@ -1178,7 +1228,11 @@ module ethernet_dpi #(
                      else
                        begin
                           current_dma_addr_offset <= next_offset;
-                          current_state <= state_wait_state_between_dma_writes;
+
+                          if ( INSERT_WAIT_STATE_BETWEEN_DMA_ACCESSES )
+                               current_state <= state_wait_state_between_dma_writes;
+                          else
+                               start_dma_write( received_frame_byte_count, next_offset );
                        end
                   end
                 else
@@ -1189,37 +1243,12 @@ module ethernet_dpi #(
 
            state_wait_state_between_dma_reads:
              begin
-                // $display("%sInitiating next DMA read from address 0x%08X",
-                //          `ETHDPI_TRACE_PREFIX,
-                //          buffer_descriptor_addresses[ current_tx_bd_index ] + current_dma_addr_offset );
-
-                m_wb_adr_o <= buffer_descriptor_addresses[ current_tx_bd_index ] + current_dma_addr_offset;
-                m_wb_we_o  <= 0;
-                m_wb_dat_o <= 0;
-                start_wishbone_master_cycle;
-
-                current_state <= state_waiting_for_dma_read_to_complete;
+                start_dma_read( current_dma_addr_offset );
              end
 
            state_wait_state_between_dma_writes:
              begin
-                reg [31:0] data;
-
-                // $display( "%sInitiating next DMA write to address 0x%08X",
-                //           `ETHDPI_TRACE_PREFIX,
-                //           buffer_descriptor_addresses[ current_rx_bd_index ] + current_dma_addr_offset );
-
-                get_32_bits_worth_of_received_frame_data( current_dma_addr_offset, received_frame_byte_count, data );
-
-                m_wb_adr_o <= buffer_descriptor_addresses[ current_rx_bd_index ] + current_dma_addr_offset;
-                m_wb_we_o  <= 1;
-                m_wb_dat_o <= data;
-                start_wishbone_master_cycle;
-
-                if ( TRACE_DMA_TRAFFIC )
-                  $display( "%sWriting Rx data over DMA: 0x%08X", `ETHDPI_TRACE_PREFIX, data );
-
-                current_state <= state_waiting_for_dma_write_to_complete;
+                start_dma_write( received_frame_byte_count, current_dma_addr_offset );
              end
 
            default:

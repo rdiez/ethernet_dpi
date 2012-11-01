@@ -72,13 +72,16 @@ If your design is sensitive to timing, it will not work properly.
 
 =head3 No burst mode support when doing DMA memory transfers
 
-There is a gap of one Wishbone cycle between DMA memory transfers, so that higher-priority
+There is an optional gap of one Wishbone cycle between DMA memory transfers, so that higher-priority
 bus masters can interrupt long Ethernet DMA transfers. Otherwise, a debugger connecting via JTAG
-may not be able to access memory in a timely manner.
+may not be able to access memory in a timely manner. See parameter INSERT_WAIT_STATE_BETWEEN_DMA_ACCESSES.
 
 This wait state might not be necessary with an enhanced traffic COP that were able
 to interrupt transfers if a higher-priority master comes along, but I am not sure
-that such an enhancement is possible within the boundaries of the Wishbone specification.
+that such an enhancement is possible within the boundaries of the Wishbone specification,
+at least when not using plain classic transfers (when using the burst or pipeline modes).
+[Later note: the new I<< simple_wishbone_switch >> component does interrupt Wishbone cycles, so the wait state
+should no longer be necessary, at least for that particular switch]
 
 =head3 Some of the real Ethernet core features are not implemented or may not work as intended
 
